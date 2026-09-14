@@ -292,36 +292,43 @@
 
             // チャート線・ノード・外枠線に被らないよう、角度（三角関数）に基づいて全自動で外側へオフセット
             const isLargeModal = this.size >= 400;
-            const distBase = isLargeModal ? 15 : 10;
+            const distBase = isLargeModal ? 16 : 11;
 
             const sinA = Math.sin(node.angle);
             const cosA = Math.cos(node.angle);
 
+            // 上半分左右ノード（客数・一品単価等: cosA > 0.05 && |sinA| > 0.35）の判定
+            const isUpperSide = cosA > 0.05 && Math.abs(sinA) > 0.35;
+
             let textX = node.x + distBase * sinA;
             let textY = node.y - distBase * cosA;
 
-            // 水平アンカー：角度の正弦（sin）に応じて左右へ自然に逃がす
             let textAnchor = 'middle';
-            if (sinA > 0.25) {
-              textAnchor = 'start';
-              textX += (isLargeModal ? 2 : 1.5);
-            } else if (sinA < -0.25) {
-              textAnchor = 'end';
-              textX -= (isLargeModal ? 2 : 1.5);
-            } else {
-              textAnchor = 'middle';
-            }
-
-            // 垂直ベースライン：角度の余弦（cos）に応じて上下へ自然に逃がす
             let dominantBaseline = 'central';
-            if (cosA > 0.45) {
-              dominantBaseline = 'auto'; // 上方（文字が線より上に乗る）
-              textY -= 2;
-            } else if (cosA < -0.45) {
-              dominantBaseline = 'hanging'; // 下方（文字が線より下にぶら下がる）
-              textY += 2;
+
+            if (isUpperSide) {
+              // 一品単価・客数：ノードの斜め上のクリア領域へリフト（下揃えで上方向へ展開）
+              textY = node.y - (isLargeModal ? 8 : 5);
+              textX = node.x + (isLargeModal ? 6 : 4) * Math.sign(sinA);
+              textAnchor = sinA > 0 ? 'start' : 'end';
+              dominantBaseline = 'auto';
             } else {
-              dominantBaseline = 'central'; // 左右真横
+              // その他のノード（真上・下半分など）
+              if (sinA > 0.25) {
+                textAnchor = 'start';
+                textX += (isLargeModal ? 4 : 2.5);
+              } else if (sinA < -0.25) {
+                textAnchor = 'end';
+                textX -= (isLargeModal ? 4 : 2.5);
+              }
+
+              if (cosA > 0.15) {
+                dominantBaseline = 'auto';
+                textY -= 2;
+              } else if (cosA < -0.35) {
+                dominantBaseline = 'hanging';
+                textY += 2;
+              }
             }
 
             valText.setAttribute('x', textX.toFixed(1));
@@ -343,41 +350,53 @@
         const angle = i * angleStep;
         const sinA = Math.sin(angle);
         const cosA = Math.cos(angle);
+        const isUpperSide = cosA > 0.05 && Math.abs(sinA) > 0.35;
 
-        // 左右方向は横長の実績値（xx.xx%）が外側へ張り出すため、正弦の大きさに応じてオフセットを自動拡幅
-        const horizontalExpansion = Math.abs(sinA) * 10;
-        const axisOffset = 26 + horizontalExpansion + (isLarge ? 12 : 0);
+        let labelX;
+        let labelY;
+        let labelAnchor = 'middle';
+        let labelBaseline = 'central';
 
-        const labelDist = this.radius + axisOffset;
-        const pos = polarToCartesian(this.cx, this.cy, labelDist, angle);
+        if (isUpperSide) {
+          // 一品単価・客数などの上半分左右軸は、実績値のさらに上側へスタック配置（SVG端切れ＆チャート被りを完全防止）
+          labelX = this.cx + (this.radius + (isLarge ? 6 : 4)) * sinA;
+          labelY = (this.cy - this.radius * cosA) - (isLarge ? 24 : 17);
+          labelAnchor = sinA > 0 ? 'start' : 'end';
+          labelBaseline = 'auto';
+        } else {
+          // 真上・下半分などの通常軸配置
+          const horizontalExpansion = Math.abs(sinA) * 12;
+          const axisOffset = 26 + horizontalExpansion + (isLarge ? 12 : 0);
+          const labelDist = this.radius + axisOffset;
+          const pos = polarToCartesian(this.cx, this.cy, labelDist, angle);
+
+          labelX = pos.x;
+          labelY = pos.y;
+
+          if (sinA > 0.25) {
+            labelAnchor = 'start';
+          } else if (sinA < -0.25) {
+            labelAnchor = 'end';
+          } else {
+            labelAnchor = 'middle';
+          }
+
+          if (cosA > 0.15) {
+            labelBaseline = 'bottom';
+          } else if (cosA < -0.35) {
+            labelBaseline = 'hanging';
+          } else {
+            labelBaseline = 'central';
+          }
+        }
 
         const text = document.createElementNS(SVG_NS, 'text');
-        text.setAttribute('x', pos.x.toFixed(1));
-        text.setAttribute('y', pos.y.toFixed(1));
+        text.setAttribute('x', labelX.toFixed(1));
+        text.setAttribute('y', labelY.toFixed(1));
         text.setAttribute('class', 'chart-axis-title');
         text.setAttribute('fill', '#94a3b8');
         text.setAttribute('font-size', isLarge ? '12px' : '10px');
         text.setAttribute('font-weight', '600');
-
-        // 角度（sinA, cosA）に基づく全自動テキストアンカー判定
-        let labelAnchor = 'middle';
-        if (sinA > 0.25) {
-          labelAnchor = 'start';
-        } else if (sinA < -0.25) {
-          labelAnchor = 'end';
-        } else {
-          labelAnchor = 'middle';
-        }
-
-        let labelBaseline = 'central';
-        if (cosA > 0.45) {
-          labelBaseline = 'bottom';
-        } else if (cosA < -0.45) {
-          labelBaseline = 'hanging';
-        } else {
-          labelBaseline = 'central';
-        }
-
         text.setAttribute('text-anchor', labelAnchor);
         text.setAttribute('dominant-baseline', labelBaseline);
 

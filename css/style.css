@@ -956,3 +956,37 @@ main {
 [data-theme="light"] .modal-section-title {
   color: #334155;
 }
+
+/* レーダーチャート実績値ラベル（Text Halo 袋文字効果でチャート線・枠線との被りを完全防止） */
+.chart-node-val {
+  fill: #f8fafc;
+  stroke: #0b1329;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="light"] .chart-node-val {
+  fill: #0f172a;
+  stroke: #ffffff;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+.chart-axis-title {
+  fill: #94a3b8;
+  stroke: #0b1329;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+[data-theme="light"] .chart-axis-title {
+  fill: #334155;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
