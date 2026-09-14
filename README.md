@@ -43,7 +43,7 @@
 ```text
 radar-chart/
 ├── .gitignore          # Git管理除外設定
-├── index.html          # メインHTML（ダッシュボード画面・モーダル構造）
+├── radar chart.html    # メインHTML（ダッシュボード画面・モーダル構造）
 ├── README.md           # 本ドキュメント
 ├── css/
 │   └── style.css       # スタイルシート（ダーク/ライトテーマ、レスポンシブ、アニメーション）
@@ -61,14 +61,14 @@ radar-chart/
 
 ### 動作環境
 - モダンブラウザ（Google Chrome, Microsoft Edge, Mozilla Firefox, Safari 等の最新版）
-- Webサーバー不要（ローカルPC上で `index.html` を直接ブラウザで開くだけで即座に動作）
+- Webサーバー不要（ローカルPC上で `radar chart.html` を直接ブラウザで開くだけで即座に動作）
 
 ### 利用手順
 1. 本リポジトリをクローンまたはZIPダウンロードします。
    ```bash
    git clone https://github.com/yutatbgt-bit/radar-chart.git
    ```
-2. フォルダ内の `index.html` をダブルクリック（またはブラウザへドラッグ＆ドロップ）して開きます。
+2. フォルダ内の `radar chart.html` をダブルクリック（またはブラウザへドラッグ＆ドロップ）して開きます。
 3. 画面右上の「CSVファイルをドロップ または 選択」ボタンから、売上データCSVを読み込みます。
 4. 全24店舗のレーダーチャートと指標テーブルが即座に展開されます。
 5. 各店舗カードをクリックすると、詳細拡大モーダルが表示されます。
