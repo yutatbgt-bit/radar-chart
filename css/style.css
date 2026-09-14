@@ -1,0 +1,958 @@
+/* ==========================================================================
+   Luxury Dark Style - Radar Chart Kanban Dashboard
+   ========================================================================== */
+
+:root {
+  /* 背景・サーフェス */
+  --bg-deep: #070a12;
+  --bg-main: #0b1120;
+  --bg-surface: #0f172a;
+  --bg-card: rgba(19, 29, 51, 0.75);
+  --bg-card-hover: rgba(24, 37, 65, 0.85);
+  --bg-column: rgba(15, 23, 42, 0.65);
+  
+  /* テキストカラー */
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  /* ボーダー・境界線 */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.1);
+  --border-card-hover: rgba(255, 255, 255, 0.22);
+  --border-divider: rgba(255, 255, 255, 0.06);
+
+  /* タイポグラフィ */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  
+  /* シャドウ・グロー効果 */
+  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-card-hover: 0 12px 40px 0 rgba(0, 0, 0, 0.55), 0 0 16px rgba(56, 189, 248, 0.15);
+  --shadow-header: 0 4px 24px rgba(0, 0, 0, 0.4);
+
+  /* 角丸 */
+  --radius-xl: 16px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+}
+
+/* ==========================================================================
+   Light Mode Theme Overrides (エレガントライトスタイル)
+   ========================================================================== */
+[data-theme="light"] {
+  /* 背景・サーフェス */
+  --bg-deep: #f1f5f9;
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.90);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-column: rgba(241, 245, 249, 0.75);
+
+  /* テキストカラー */
+  --text-main: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+
+  /* ボーダー・境界線 */
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-card: rgba(0, 0, 0, 0.08);
+  --border-card-hover: rgba(14, 165, 233, 0.45);
+  --border-divider: rgba(0, 0, 0, 0.06);
+
+  /* シャドウ */
+  --shadow-card: 0 4px 20px 0 rgba(0, 0, 0, 0.06), 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 10px 30px 0 rgba(0, 0, 0, 0.12), 0 0 12px rgba(14, 165, 233, 0.15);
+  --shadow-header: 0 2px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] body {
+  background-color: var(--bg-deep);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.07) 0%, transparent 40%),
+    radial-gradient(circle at 85% 25%, rgba(168, 85, 247, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-deep);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 85% 25%, rgba(147, 51, 234, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+/* ヘッダーエリア */
+.app-header {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  padding: 22px 28px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-header);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-title-group h1 {
+  font-size: 1.625rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-title-group p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+  letter-spacing: 0.02em;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* 読み込みボタン周辺 ドロップ＆選択ゾーン (Header Drop Zone) */
+.header-drop-zone {
+  position: relative;
+  display: inline-flex;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drop-zone-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1.5px dashed rgba(56, 189, 248, 0.45);
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  user-select: none;
+}
+
+.drop-zone-label:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+}
+
+/* ドラッグオーバー中のハイライトアニメーション */
+.header-drop-zone.is-drag-over .drop-zone-label {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38bdf8;
+  border-style: solid;
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.2);
+  transform: scale(1.04);
+}
+
+.drop-zone-icon {
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.header-drop-zone.is-drag-over .drop-zone-icon {
+  transform: translateY(-2px) scale(1.15);
+}
+
+.drop-zone-texts {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.drop-zone-main-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+.drop-zone-sub-text {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.header-drop-zone.is-drag-over .drop-zone-sub-text {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.file-upload-input {
+  display: none;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* クリアボタン（数値クリア用） */
+.btn-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(244, 63, 94, 0.08);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  user-select: none;
+}
+
+.btn-clear:hover {
+  background: rgba(244, 63, 94, 0.18);
+  color: #ffffff;
+  border-color: #f43f5e;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-clear:active {
+  transform: translateY(0);
+}
+
+/* 4列カンバンビュー グリッドコンテナ（横スクロール対応・4列維持） */
+main {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(300px, 1fr));
+  gap: 20px;
+  align-items: start;
+  min-width: 1260px;
+}
+
+/* カンバン列（ガラスモフィズム調） */
+.kanban-column {
+  background-color: var(--bg-column);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.kanban-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+  letter-spacing: 0.03em;
+}
+
+.kanban-count-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.kanban-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 店舗カード（ラグジュアリースタイル＆クリッカブル） */
+.store-kanban-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s, border-color 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  position: relative;
+}
+
+.store-kanban-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-5px) scale(1.015);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-card-hover);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.card-store-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.card-store-code {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+/* チャート描画エリア */
+.card-chart-area {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 280px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.luxury-radar-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* カード内テーブル（ダークラグジュアリー） */
+.card-table-area {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.card-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.card-metrics-table th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-divider);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.card-metrics-table th.th-value,
+.card-metrics-table th.th-diff {
+  text-align: right;
+}
+
+.card-metrics-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+
+.card-metrics-table tr:last-child td {
+  border-bottom: none;
+}
+
+.card-metrics-table .td-name {
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.card-metrics-table .td-val {
+  text-align: right;
+  font-weight: 700;
+  font-family: monospace;
+  color: #ffffff;
+}
+
+.card-metrics-table .td-diff-badge {
+  text-align: right;
+}
+
+/* 前年差バッジ（淡いソフトパステルトーン） */
+.badge-diff {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+}
+
+.badge-positive {
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(110, 231, 183, 0.25);
+}
+
+.badge-negative {
+  background: rgba(244, 63, 94, 0.12);
+  color: #fda4af;
+  border: 1px solid rgba(253, 164, 175, 0.25);
+}
+
+/* トースト通知 */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+.toast {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+  border: 1px solid var(--border-card);
+  padding: 14px 22px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.toast-success {
+  border-left: 4px solid #34d399;
+}
+
+.toast-error {
+  border-left: 4px solid #f87171;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   店舗詳細ポップアップモーダル (Luxury Dark Modal)
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(3, 7, 18, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-dialog {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.15);
+  position: relative;
+  animation: modalScaleUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleUp {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-close-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+
+.modal-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.modal-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.modal-store-title {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.modal-store-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.modal-body-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .modal-body-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.modal-section-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: #38bdf8;
+  border-radius: 2px;
+}
+
+/* 拡大チャート */
+.modal-chart-wrapper {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+}
+
+/* 拡大テーブル */
+.modal-table-wrapper {
+  width: 100%;
+}
+
+.modal-table-wrapper .card-metrics-table {
+  font-size: 0.9375rem;
+}
+
+.modal-table-wrapper .card-metrics-table th {
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+}
+
+.modal-table-wrapper .card-metrics-table td {
+  padding: 12px 14px;
+}
+
+.modal-table-wrapper .badge-diff {
+  font-size: 0.875rem;
+  padding: 3px 10px;
+}
+
+/* ==========================================================================
+   テーマ切り替えボタン (Theme Toggle Button)
+   ========================================================================== */
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  padding: 9px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.btn-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: var(--border-card-hover);
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.theme-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ダークモード時（デフォルト）: 太陽アイコンを表示し、ライトモードへの切替を提示 */
+.icon-sun {
+  display: block;
+}
+.icon-moon {
+  display: none;
+}
+
+/* ライトモード時: 月アイコンを表示し、ダークモードへの切替を提示 */
+[data-theme="light"] .icon-sun {
+  display: none;
+}
+[data-theme="light"] .icon-moon {
+  display: block;
+}
+
+[data-theme="light"] .btn-theme-toggle {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #334155;
+}
+
+[data-theme="light"] .btn-theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.22);
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   ライトモード時のSVGレーダーチャートおよびUI要素の適応
+   ========================================================================== */
+/* チャートの背景グリッド線・軸線 */
+[data-theme="light"] .chart-grid polygon:not([stroke-dasharray]) {
+  stroke: rgba(0, 0, 0, 0.10) !important;
+}
+
+[data-theme="light"] .chart-grid circle {
+  stroke: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .chart-axes line {
+  stroke: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 目盛り数値 */
+[data-theme="light"] .chart-scale-label {
+  fill: rgba(71, 85, 105, 0.60) !important;
+}
+
+/* 5項目の軸名（白背景での視認性を高めた深みのあるスレートグレー） */
+[data-theme="light"] .chart-axis-title {
+  fill: #334155 !important;
+  font-weight: 700 !important;
+}
+
+/* 頂点ノードの実績値ラベル（袋文字Text Haloによる線被り完全防止） */
+.chart-node-val {
+  fill: #f1f5f9;
+  paint-order: stroke fill;
+  stroke: rgba(11, 19, 41, 0.95);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+[data-theme="light"] .chart-node-val {
+  fill: #0f172a !important;
+  stroke: #ffffff !important;
+  stroke-width: 3.5px;
+  font-weight: 800 !important;
+}
+
+.modal-chart-wrapper .chart-node-val {
+  stroke-width: 4.5px;
+}
+
+[data-theme="light"] .modal-chart-wrapper .chart-node-val {
+  stroke-width: 4.5px;
+}
+
+/* ライトモード時のヘッダーグラス背景 */
+[data-theme="light"] .app-header {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+/* ドロップゾーン＆クリアボタンのライトモード対応 */
+[data-theme="light"] .header-drop-zone {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .header-drop-zone:hover {
+  background: rgba(14, 165, 233, 0.06);
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+[data-theme="light"] .btn-clear {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #475569;
+}
+
+[data-theme="light"] .btn-clear:hover {
+  background: rgba(244, 63, 94, 0.08);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #e11d48;
+}
+
+/* ライトモード時のカンバン列とカード */
+[data-theme="light"] .kanban-column {
+  background: var(--bg-column);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .store-kanban-card {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="light"] .store-kanban-card:hover {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-card-hover);
+}
+
+[data-theme="light"] .kanban-count-badge {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-muted);
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* ライトモード時のカテゴリバッジ（白背景で明瞭なコントラスト） */
+[data-theme="light"] [data-category="large"] .kanban-category-badge,
+[data-theme="light"] #modal-category-badge[data-category="large"] {
+  color: #0284c7 !important;
+  background-color: rgba(2, 132, 199, 0.09) !important;
+  border-color: rgba(2, 132, 199, 0.4) !important;
+}
+
+[data-theme="light"] [data-category="medium_a"] .kanban-category-badge,
+[data-theme="light"] #modal-category-badge[data-category="medium_a"] {
+  color: #15803d !important;
+  background-color: rgba(21, 128, 61, 0.09) !important;
+  border-color: rgba(21, 128, 61, 0.4) !important;
+}
+
+[data-theme="light"] [data-category="medium_b"] .kanban-category-badge,
+[data-theme="light"] #modal-category-badge[data-category="medium_b"] {
+  color: #a16207 !important;
+  background-color: rgba(161, 98, 7, 0.09) !important;
+  border-color: rgba(161, 98, 7, 0.4) !important;
+}
+
+[data-theme="light"] [data-category="station_cvs"] .kanban-category-badge,
+[data-theme="light"] #modal-category-badge[data-category="station_cvs"] {
+  color: #c2410c !important;
+  background-color: rgba(194, 65, 12, 0.09) !important;
+  border-color: rgba(194, 65, 12, 0.4) !important;
+}
+
+/* ライトモード時の店舗詳細ポップアップモーダル */
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="light"] .modal-dialog {
+  background: #ffffff;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+}
+
+[data-theme="light"] .modal-store-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .modal-close-button {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #475569;
+}
+
+[data-theme="light"] .modal-close-button:hover {
+  background: rgba(0, 0, 0, 0.10);
+  color: #0f172a;
+}
+
+[data-theme="light"] .modal-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .card-metrics-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* ライトモード時のヘッダータイトル・テキスト視認性向上 */
+[data-theme="light"] .header-title-group h1 {
+  background: linear-gradient(135deg, #0f172a 30%, #334155 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .drop-zone-main-text {
+  color: #0f172a;
+}
+
+[data-theme="light"] .legend-bar {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .card-store-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .card-store-code {
+  color: #64748b;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ライトモード時のテーブル（項目名・数値・差分バッジ・見出し）の視認性向上 */
+[data-theme="light"] .card-metrics-table th {
+  background: rgba(0, 0, 0, 0.03);
+  color: #475569;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .card-metrics-table td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .card-metrics-table .td-name {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+[data-theme="light"] .card-metrics-table .td-val {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+[data-theme="light"] .badge-positive {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+[data-theme="light"] .badge-negative {
+  background: rgba(244, 63, 94, 0.12);
+  color: #be123c;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+/* ライトモード時のモーダル内セクションタイトル */
+[data-theme="light"] .modal-section-title {
+  color: #334155;
+}

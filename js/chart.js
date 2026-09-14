@@ -1,0 +1,398 @@
+/**
+ * Luxury Dark Style Pure SVG レーダーチャート描画エンジン (chart.js)
+ * 
+ * 外部ライブラリ不使用、innerHTML不使用、DOM/SVG APIのみで構築。
+ * 時計回り5項目、グラデーション塗り、同心円/多角形グリッド、ネオングローノードを精密描画。
+ */
+
+(function (root) {
+  'use strict';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let chartIdCounter = 0;
+
+  /**
+   * 時計回りの極座標変換（0ラジアン = 真上12時方向）
+   */
+  function polarToCartesian(cx, cy, r, angleRad) {
+    return {
+      x: cx + r * Math.sin(angleRad),
+      y: cy - r * Math.cos(angleRad)
+    };
+  }
+
+  class StoreRadarChart {
+    /**
+     * @param {HTMLElement} containerElement 描画先DOM要素
+     * @param {Object} storeRecord 店舗データ
+     * @param {Object} config アプリ設定
+     * @param {Object} categoryConfig カテゴリ設定
+     */
+    constructor(containerElement, storeRecord, config, categoryConfig, customOptions) {
+      this.container = containerElement;
+      this.store = storeRecord;
+      this.config = config || {};
+      this.categoryConfig = categoryConfig || {};
+      this.customOptions = customOptions || {};
+      this.metrics = this.config.metrics || [];
+      this.chartOpts = Object.assign({}, this.config.chartOptions || {}, this.customOptions);
+      
+      this.chartId = `radar-${++chartIdCounter}`;
+
+      this.size = this.chartOpts.size || 280;
+      this.margin = this.chartOpts.margin || 44;
+      this.cx = this.size / 2;
+      this.cy = this.size / 2;
+      this.radius = (this.size / 2) - this.margin;
+      this.levels = this.chartOpts.levels || 5;
+
+      // 端の値を100%に設定（configから取得、デフォルト 0%〜100%）
+      this.scaleMin = this.chartOpts.scaleMin !== undefined ? this.chartOpts.scaleMin : 0;
+      this.scaleMax = this.chartOpts.scaleMax !== undefined ? this.chartOpts.scaleMax : 100;
+      this.benchmarkVal = this.chartOpts.benchmarkVal || 100.0;
+
+      // テーマカラー
+      this.chartColors = this.categoryConfig.chartColor || {
+        stroke: "#38bdf8",
+        fillStart: "rgba(56, 189, 248, 0.45)",
+        fillEnd: "rgba(37, 99, 235, 0.15)",
+        nodeGlow: "rgba(56, 189, 248, 0.6)"
+      };
+
+      this.render();
+    }
+
+    /**
+     * 値から半径ピクセルへのマッピング
+     */
+    valueToRadius(value) {
+      const clamped = Math.max(this.scaleMin, Math.min(this.scaleMax, value));
+      const ratio = (clamped - this.scaleMin) / (this.scaleMax - this.scaleMin);
+      return this.radius * ratio;
+    }
+
+    /**
+     * チャート描画
+     */
+    render() {
+      // 既存の子要素を安全に全削除
+      while (this.container.firstChild) {
+        this.container.removeChild(this.container.firstChild);
+      }
+
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${this.size} ${this.size}`);
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.setAttribute('class', 'luxury-radar-svg');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `${this.store.storeName} レーダーチャート`);
+
+      const numAxes = this.metrics.length; // 5
+      const angleStep = (Math.PI * 2) / numAxes;
+
+      // --- DEFS: ラグジュアリーグロー＆グラデーション定義 ---
+      const defs = document.createElementNS(SVG_NS, 'defs');
+
+      // ポリゴン用リニアグラデーション（カテゴリ別の鮮やかなグラデーション）
+      const gradId = `grad-${this.chartId}`;
+      const linearGrad = document.createElementNS(SVG_NS, 'linearGradient');
+      linearGrad.setAttribute('id', gradId);
+      linearGrad.setAttribute('x1', '0%');
+      linearGrad.setAttribute('y1', '0%');
+      linearGrad.setAttribute('x2', '100%');
+      linearGrad.setAttribute('y2', '100%');
+
+      const stop1 = document.createElementNS(SVG_NS, 'stop');
+      stop1.setAttribute('offset', '0%');
+      stop1.setAttribute('stop-color', this.chartColors.stroke);
+      stop1.setAttribute('stop-opacity', '0.48'); // 明るくマイルドな発色
+
+      const stop2 = document.createElementNS(SVG_NS, 'stop');
+      stop2.setAttribute('offset', '100%');
+      stop2.setAttribute('stop-color', this.chartColors.stroke);
+      stop2.setAttribute('stop-opacity', '0.10'); // ほどよい透過性
+
+      linearGrad.appendChild(stop1);
+      linearGrad.appendChild(stop2);
+      defs.appendChild(linearGrad);
+
+      // グローフィルター（明るく柔らかなマイルド光彩）
+      const filterId = `glow-${this.chartId}`;
+      const filter = document.createElementNS(SVG_NS, 'filter');
+      filter.setAttribute('id', filterId);
+      filter.setAttribute('x', '-20%');
+      filter.setAttribute('y', '-20%');
+      filter.setAttribute('width', '140%');
+      filter.setAttribute('height', '140%');
+
+      const feDropShadow = document.createElementNS(SVG_NS, 'feDropShadow');
+      feDropShadow.setAttribute('dx', '0');
+      feDropShadow.setAttribute('dy', '0');
+      feDropShadow.setAttribute('stdDeviation', '2.0');
+      feDropShadow.setAttribute('flood-color', this.chartColors.stroke);
+      feDropShadow.setAttribute('flood-opacity', '0.32');
+      filter.appendChild(feDropShadow);
+      defs.appendChild(filter);
+
+      svg.appendChild(defs);
+
+      // --- 1. 背景グリッド（多角形＋同心円の融合ラグジュアリースタイル） ---
+      const gridGroup = document.createElementNS(SVG_NS, 'g');
+      gridGroup.setAttribute('class', 'chart-grid');
+
+      // 最外周の円形ラグジュアリーリング
+      if (this.chartOpts.showOuterRing) {
+        const outerCircle = document.createElementNS(SVG_NS, 'circle');
+        outerCircle.setAttribute('cx', this.cx.toFixed(1));
+        outerCircle.setAttribute('cy', this.cy.toFixed(1));
+        outerCircle.setAttribute('r', (this.radius + 4).toFixed(1));
+        outerCircle.setAttribute('stroke', 'rgba(255, 255, 255, 0.08)');
+        outerCircle.setAttribute('stroke-width', '1');
+        outerCircle.setAttribute('fill', 'none');
+        gridGroup.appendChild(outerCircle);
+      }
+
+      // 多角形グリッド（0%から端100%まで）
+      for (let level = 1; level <= this.levels; level++) {
+        const levelPct = this.scaleMin + ((this.scaleMax - this.scaleMin) / this.levels) * level;
+        const levelRadius = this.valueToRadius(levelPct);
+        const isOuterEdge = level === this.levels; // 最外周（端100%）
+        const points = [];
+
+        for (let i = 0; i < numAxes; i++) {
+          const angle = i * angleStep;
+          const pos = polarToCartesian(this.cx, this.cy, levelRadius, angle);
+          points.push(`${pos.x.toFixed(1)},${pos.y.toFixed(1)}`);
+        }
+
+        const polygon = document.createElementNS(SVG_NS, 'polygon');
+        polygon.setAttribute('points', points.join(' '));
+        
+        if (isOuterEdge) {
+          // 最外周端（100%ライン）：淡いソフトローズの破線枠
+          polygon.setAttribute('stroke', this.chartOpts.benchmarkColor || 'rgba(251, 113, 133, 0.75)');
+          polygon.setAttribute('stroke-width', '1.4');
+          polygon.setAttribute('stroke-dasharray', '4,2');
+          polygon.setAttribute('fill', 'none');
+        } else {
+          polygon.setAttribute('stroke', 'rgba(255, 255, 255, 0.10)');
+          polygon.setAttribute('stroke-width', '0.7');
+          polygon.setAttribute('fill', 'none');
+        }
+        gridGroup.appendChild(polygon);
+
+        // レベル目盛り数値（基準線100%の表示は不要のため非表示）
+        const showBenchmarkLabel = Boolean(this.chartOpts.showBenchmarkLabel);
+        if (!isOuterEdge || showBenchmarkLabel) {
+          const scalePos = polarToCartesian(this.cx, this.cy, levelRadius, 0);
+          const scaleText = document.createElementNS(SVG_NS, 'text');
+          scaleText.setAttribute('x', (scalePos.x + 3).toFixed(1));
+          scaleText.setAttribute('y', (scalePos.y + 2).toFixed(1));
+          scaleText.setAttribute('class', isOuterEdge ? 'chart-scale-label-outer' : 'chart-scale-label');
+          scaleText.setAttribute('fill', isOuterEdge ? 'rgba(251, 113, 133, 0.85)' : 'rgba(148, 163, 184, 0.50)');
+          scaleText.setAttribute('font-size', isOuterEdge ? '8.5px' : '7.5px');
+          scaleText.setAttribute('font-weight', isOuterEdge ? '600' : '400');
+          scaleText.setAttribute('font-family', 'monospace');
+          scaleText.textContent = `${Math.round(levelPct)}%`;
+          gridGroup.appendChild(scaleText);
+        }
+      }
+      svg.appendChild(gridGroup);
+
+      // --- 2. 放射軸線 ---
+      const axisGroup = document.createElementNS(SVG_NS, 'g');
+      axisGroup.setAttribute('class', 'chart-axes');
+
+      for (let i = 0; i < numAxes; i++) {
+        const angle = i * angleStep;
+        const endPos = polarToCartesian(this.cx, this.cy, this.radius, angle);
+
+        const line = document.createElementNS(SVG_NS, 'line');
+        line.setAttribute('x1', this.cx.toFixed(1));
+        line.setAttribute('y1', this.cy.toFixed(1));
+        line.setAttribute('x2', endPos.x.toFixed(1));
+        line.setAttribute('y2', endPos.y.toFixed(1));
+        line.setAttribute('stroke', 'rgba(255, 255, 255, 0.14)');
+        line.setAttribute('stroke-width', '1');
+        line.setAttribute('stroke-dasharray', '2,3');
+        axisGroup.appendChild(line);
+      }
+      svg.appendChild(axisGroup);
+
+      // --- 3. 実測値ポリゴン（ラグジュアリーグロー＆グラデーション：クリア時は未描画） ---
+      if (!this.store.isCleared) {
+        const dataGroup = document.createElementNS(SVG_NS, 'g');
+        dataGroup.setAttribute('class', 'chart-data');
+
+        const dataPoints = [];
+        const nodeCoords = [];
+
+        this.metrics.forEach((metric, i) => {
+          const angle = i * angleStep;
+          const rawVal = this.store.metrics[metric.key] !== undefined
+            ? this.store.metrics[metric.key]
+            : (this.store.metrics[metric.id] || 0);
+
+          // 端の値（100%）を上限としてクランプ
+          const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
+          const r = this.valueToRadius(clampedVal);
+          const pos = polarToCartesian(this.cx, this.cy, r, angle);
+
+          dataPoints.push(`${pos.x.toFixed(1)},${pos.y.toFixed(1)}`);
+          nodeCoords.push({
+            x: pos.x,
+            y: pos.y,
+            val: clampedVal,
+            metric: metric,
+            angle: angle,
+            index: i
+          });
+        });
+
+        // 塗りつぶしグラデーションポリゴン（できる限り細い極細外枠線）
+        const polygon = document.createElementNS(SVG_NS, 'polygon');
+        polygon.setAttribute('points', dataPoints.join(' '));
+        polygon.setAttribute('fill', `url(#${gradId})`);
+        polygon.setAttribute('stroke', this.chartColors.stroke);
+        polygon.setAttribute('stroke-width', String(this.chartOpts.strokeWidth !== undefined ? this.chartOpts.strokeWidth : 0.8));
+        polygon.setAttribute('class', 'store-data-polygon');
+        dataGroup.appendChild(polygon);
+
+        // 各頂点のラグジュアリーノードポイント
+        nodeCoords.forEach((node) => {
+          // 外周リング（繊細な極細リング）
+          const outerCircle = document.createElementNS(SVG_NS, 'circle');
+          outerCircle.setAttribute('cx', node.x.toFixed(1));
+          outerCircle.setAttribute('cy', node.y.toFixed(1));
+          outerCircle.setAttribute('r', '3.8');
+          outerCircle.setAttribute('fill', '#0b1329');
+          outerCircle.setAttribute('stroke', this.chartColors.stroke);
+          outerCircle.setAttribute('stroke-width', '1.2');
+          dataGroup.appendChild(outerCircle);
+
+          // 内芯ポイント
+          const innerCircle = document.createElementNS(SVG_NS, 'circle');
+          innerCircle.setAttribute('cx', node.x.toFixed(1));
+          innerCircle.setAttribute('cy', node.y.toFixed(1));
+          innerCircle.setAttribute('r', '1.5');
+          innerCircle.setAttribute('fill', '#ffffff');
+          dataGroup.appendChild(innerCircle);
+
+          // ノード数値ラベル（チャート線やノードに被らないよう外側にオフセット配置）
+          if (this.chartOpts.showValuesOnNodes && !this.store.isMissing) {
+            const valText = document.createElementNS(SVG_NS, 'text');
+            valText.setAttribute('class', 'chart-node-val');
+            valText.setAttribute('font-size', this.size >= 400 ? '11px' : '9.5px');
+            valText.setAttribute('font-weight', '700');
+            valText.setAttribute('font-family', 'monospace');
+            valText.textContent = `${node.val.toFixed(2)}%`;
+
+            // チャート線・ノード・外枠線に被らないよう、角度（三角関数）に基づいて全自動で外側へオフセット
+            const isLargeModal = this.size >= 400;
+            const distBase = isLargeModal ? 15 : 10;
+
+            const sinA = Math.sin(node.angle);
+            const cosA = Math.cos(node.angle);
+
+            let textX = node.x + distBase * sinA;
+            let textY = node.y - distBase * cosA;
+
+            // 水平アンカー：角度の正弦（sin）に応じて左右へ自然に逃がす
+            let textAnchor = 'middle';
+            if (sinA > 0.25) {
+              textAnchor = 'start';
+              textX += (isLargeModal ? 2 : 1.5);
+            } else if (sinA < -0.25) {
+              textAnchor = 'end';
+              textX -= (isLargeModal ? 2 : 1.5);
+            } else {
+              textAnchor = 'middle';
+            }
+
+            // 垂直ベースライン：角度の余弦（cos）に応じて上下へ自然に逃がす
+            let dominantBaseline = 'central';
+            if (cosA > 0.45) {
+              dominantBaseline = 'auto'; // 上方（文字が線より上に乗る）
+              textY -= 2;
+            } else if (cosA < -0.45) {
+              dominantBaseline = 'hanging'; // 下方（文字が線より下にぶら下がる）
+              textY += 2;
+            } else {
+              dominantBaseline = 'central'; // 左右真横
+            }
+
+            valText.setAttribute('x', textX.toFixed(1));
+            valText.setAttribute('y', textY.toFixed(1));
+            valText.setAttribute('text-anchor', textAnchor);
+            valText.setAttribute('dominant-baseline', dominantBaseline);
+            dataGroup.appendChild(valText);
+          }
+        });
+        svg.appendChild(dataGroup);
+      }
+
+      // --- 5. 軸ラベルの描画（実績値ラベルと重ならない全自動三角関数クリアランス） ---
+      const labelsGroup = document.createElementNS(SVG_NS, 'g');
+      labelsGroup.setAttribute('class', 'chart-labels');
+
+      const isLarge = this.size >= 400;
+      this.metrics.forEach((metric, i) => {
+        const angle = i * angleStep;
+        const sinA = Math.sin(angle);
+        const cosA = Math.cos(angle);
+
+        // 左右方向は横長の実績値（xx.xx%）が外側へ張り出すため、正弦の大きさに応じてオフセットを自動拡幅
+        const horizontalExpansion = Math.abs(sinA) * 10;
+        const axisOffset = 26 + horizontalExpansion + (isLarge ? 12 : 0);
+
+        const labelDist = this.radius + axisOffset;
+        const pos = polarToCartesian(this.cx, this.cy, labelDist, angle);
+
+        const text = document.createElementNS(SVG_NS, 'text');
+        text.setAttribute('x', pos.x.toFixed(1));
+        text.setAttribute('y', pos.y.toFixed(1));
+        text.setAttribute('class', 'chart-axis-title');
+        text.setAttribute('fill', '#94a3b8');
+        text.setAttribute('font-size', isLarge ? '12px' : '10px');
+        text.setAttribute('font-weight', '600');
+
+        // 角度（sinA, cosA）に基づく全自動テキストアンカー判定
+        let labelAnchor = 'middle';
+        if (sinA > 0.25) {
+          labelAnchor = 'start';
+        } else if (sinA < -0.25) {
+          labelAnchor = 'end';
+        } else {
+          labelAnchor = 'middle';
+        }
+
+        let labelBaseline = 'central';
+        if (cosA > 0.45) {
+          labelBaseline = 'bottom';
+        } else if (cosA < -0.45) {
+          labelBaseline = 'hanging';
+        } else {
+          labelBaseline = 'central';
+        }
+
+        text.setAttribute('text-anchor', labelAnchor);
+        text.setAttribute('dominant-baseline', labelBaseline);
+
+        text.textContent = metric.shortLabel || metric.label.replace('比較日比', '');
+
+        const titleEl = document.createElementNS(SVG_NS, 'title');
+        titleEl.textContent = `${metric.label} (基準: ${metric.benchmark}%)`;
+        text.appendChild(titleEl);
+
+        labelsGroup.appendChild(text);
+      });
+      svg.appendChild(labelsGroup);
+
+      this.container.appendChild(svg);
+    }
+  }
+
+  root.StoreRadarChart = StoreRadarChart;
+
+})(typeof window !== 'undefined' ? window : this);
