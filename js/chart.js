@@ -244,6 +244,7 @@
             x: pos.x,
             y: pos.y,
             val: clampedVal,
+            rawVal: rawVal,
             metric: metric,
             angle: angle,
             index: i
@@ -279,14 +280,15 @@
           innerCircle.setAttribute('fill', '#ffffff');
           dataGroup.appendChild(innerCircle);
 
-          // ノード数値ラベル（チャート線やノードに被らないよう外側にオフセット配置）
+          // ノード数値ラベル（実際の実績値を表示。チャート線やノードに被らないよう外側にオフセット配置）
           if (this.chartOpts.showValuesOnNodes && !this.store.isMissing) {
+            const actualVal = node.rawVal !== undefined ? node.rawVal : node.val;
             const valText = document.createElementNS(SVG_NS, 'text');
             valText.setAttribute('class', 'chart-node-val');
             valText.setAttribute('font-size', this.size >= 400 ? '11px' : '9.5px');
             valText.setAttribute('font-weight', '700');
             valText.setAttribute('font-family', 'monospace');
-            valText.textContent = `${node.val.toFixed(2)}%`;
+            valText.textContent = `${actualVal.toFixed(2)}%`;
 
             // チャート線・ノード・外枠線に被らないよう、角度（三角関数）に基づいて全自動で外側へオフセット
             const isLargeModal = this.size >= 400;
