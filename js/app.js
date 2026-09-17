@@ -349,6 +349,90 @@
   }
 
   /**
+   * 全画面表示切り替え機能の初期化
+   */
+  function initFullscreenToggle() {
+    const fsBtn = document.getElementById('btn-fullscreen-toggle');
+    if (!fsBtn) return;
+
+    // ブラウザのFullscreen APIサポート確認
+    const isFullscreenSupported = Boolean(
+      document.fullscreenEnabled ||
+      document.webkitFullscreenEnabled ||
+      document.mozFullScreenEnabled ||
+      document.msFullscreenEnabled
+    );
+
+    if (!isFullscreenSupported) {
+      fsBtn.style.display = 'none';
+      return;
+    }
+
+    function isFullscreenActive() {
+      return Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+    }
+
+    function updateFullscreenUI() {
+      const active = isFullscreenActive();
+      fsBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      fsBtn.setAttribute('title', active ? '全画面表示を解除します' : '全画面表示に切り替えます');
+      fsBtn.setAttribute('aria-label', active ? '全画面表示を解除' : '全画面表示に切り替え');
+    }
+
+    function toggleFullscreen() {
+      if (!isFullscreenActive()) {
+        const docEl = document.documentElement;
+        const requestMethod = docEl.requestFullscreen ||
+                              docEl.webkitRequestFullscreen ||
+                              docEl.mozRequestFullScreen ||
+                              docEl.msRequestFullscreen;
+        if (requestMethod) {
+          const promise = requestMethod.call(docEl);
+          if (promise && promise.catch) {
+            promise.catch(() => {
+              showToast('全画面表示への切り替えが拒否されました', 'info');
+            });
+          }
+        }
+      } else {
+        const exitMethod = document.exitFullscreen ||
+                           document.webkitExitFullscreen ||
+                           document.mozCancelFullScreen ||
+                           document.msExitFullscreen;
+        if (exitMethod) {
+          const promise = exitMethod.call(document);
+          if (promise && promise.catch) {
+            promise.catch(() => {
+              showToast('全画面表示の解除に失敗しました', 'info');
+            });
+          }
+        }
+      }
+    }
+
+    fsBtn.addEventListener('click', () => {
+      toggleFullscreen();
+    });
+
+    const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+    fsEvents.forEach((evt) => {
+      document.addEventListener(evt, () => {
+        updateFullscreenUI();
+        requestAnimationFrame(() => {
+          alignCardsContainersHeight();
+        });
+      });
+    });
+
+    updateFullscreenUI();
+  }
+
+  /**
    * CSVテキストを読み込みカンバンを構築
    * @param {string} csvText 
    */
@@ -403,6 +487,9 @@
 
     // テーマ切り替え初期化
     initThemeToggle();
+
+    // 全画面表示切り替え初期化
+    initFullscreenToggle();
 
     // モーダル閉じるイベント（×ボタン、外側オーバーレイクリック、ESCキー）
     const closeBtn = document.getElementById('modal-close-btn');
