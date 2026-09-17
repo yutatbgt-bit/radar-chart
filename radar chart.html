@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -43,19 +43,18 @@
         </label>
       </div>
 
-      <!-- クリアボタン -->
-      <button type="button" id="btn-clear-data" class="btn-clear" title="全店舗の数値をクリアします（店舗数・項目は維持されます）">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <!-- クリアボタン（アイコン表示のみ） -->
+      <button type="button" id="btn-clear-data" class="btn-clear" title="全店舗の数値をクリアします（店舗数・項目は維持されます）" aria-label="全店舗の数値をクリア">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"></polyline>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
-        <span>クリア</span>
       </button>
 
-      <!-- テーマ切り替えボタン（ライト/ダーク） -->
+      <!-- テーマ切り替えボタン（ライト/ダーク） アイコン表示のみ -->
       <button type="button" id="btn-theme-toggle" class="btn-theme-toggle" title="ライトモード/ダークモードを切り替えます" aria-label="ライトモードに切り替え" aria-pressed="false">
         <span class="theme-icon-container">
-          <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -66,11 +65,10 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
-          <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
         </span>
-        <span id="theme-toggle-label" class="theme-toggle-label">ライト</span>
       </button>
     </div>
   </header>

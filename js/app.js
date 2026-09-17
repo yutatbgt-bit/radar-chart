@@ -1,4 +1,4 @@
-/**
+﻿/**
  * アプリケーション コアロジック (app.js)
  * 
  * 全24店舗・4列カンバンビューの統合制御。
@@ -109,7 +109,7 @@
         // レーダーチャートのインスタンス化
         new window.StoreRadarChart(chartArea, store, config, category);
 
-        // 2. 項目別データ表領域（セットの下部）
+        // 2. 各店の項目別データ表領域（カード内の表を消さずに維持）
         const tableArea = document.createElement('div');
         tableArea.className = 'card-table-area';
         card.appendChild(tableArea);
@@ -133,8 +133,65 @@
       });
 
       column.appendChild(cardsContainer);
+
+      // 各列の一番下に、その列の全店舗の数値をまとめた一覧表を配置
+      const summarySection = document.createElement('div');
+      summarySection.className = 'kanban-column-summary-section';
+
+      const summaryHeader = document.createElement('div');
+      summaryHeader.className = 'column-summary-header';
+
+      const summaryTitle = document.createElement('h3');
+      summaryTitle.className = 'column-summary-title';
+      summaryTitle.textContent = `${category.name} 数値実績一覧`;
+
+      summaryHeader.appendChild(summaryTitle);
+      summarySection.appendChild(summaryHeader);
+
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'column-summary-table-wrapper';
+      summarySection.appendChild(tableWrapper);
+
+      // カテゴリ別全店舗サマリーデータ表のインスタンス化
+      new window.CategorySummaryTable(tableWrapper, category, config, (clickedStore) => {
+        openStoreModal(clickedStore, category);
+      });
+
+      column.appendChild(summarySection);
       board.appendChild(column);
     });
+
+    // レンダリング直後にカードコンテナ高さを最大列（中型店A）に統一し、まとめ表を横一列に整列
+    requestAnimationFrame(() => {
+      alignCardsContainersHeight();
+    });
+  }
+
+  /**
+   * 各列のカードコンテナ高さを最大列（中型店A等）に揃え、
+   * 各列下部の一覧表開始位置を完全に横一列に整列
+   */
+  function alignCardsContainersHeight() {
+    const containers = Array.from(document.querySelectorAll('.kanban-cards-container'));
+    if (containers.length === 0) return;
+
+    // 一旦 minHeight をリセットして純粋なコンテンツ高さを計測
+    containers.forEach((c) => {
+      c.style.minHeight = '';
+    });
+
+    let maxHeight = 0;
+    containers.forEach((c) => {
+      if (c.offsetHeight > maxHeight) {
+        maxHeight = c.offsetHeight;
+      }
+    });
+
+    if (maxHeight > 0) {
+      containers.forEach((c) => {
+        c.style.minHeight = `${maxHeight}px`;
+      });
+    }
   }
 
   /**
@@ -352,6 +409,11 @@
     if (closeBtn) {
       closeBtn.addEventListener('click', closeStoreModal);
     }
+
+    // ウィンドウリサイズ時にもまとめ表の横一列揃えを自動維持
+    window.addEventListener('resize', () => {
+      alignCardsContainersHeight();
+    });
 
     const modalOverlay = document.getElementById('store-modal-overlay');
     if (modalOverlay) {

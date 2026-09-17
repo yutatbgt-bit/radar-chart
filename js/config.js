@@ -1,4 +1,4 @@
-/**
+﻿/**
  * レーダーチャート＆データ分析アプリケーション 設定ファイル (config.js)
  * 
  * ラグジュアリー・ダークテーマ対応。
@@ -201,7 +201,8 @@ window.RadarAppConfig = deepFreeze({
     margin: 48,               // 外周余白 (px: 実績値・軸名とのクリアランス確保)
     scaleMin: 0,              // 最小値 (0%)
     scaleMax: 100,            // 端の値 (100%)
-    levels: 5,                // 同心グリッド数 (20%, 40%, 60%, 80%, 100%)
+    scaleKneeValue: 90.0,     // 40%位置に設定する基準値 (90%)
+    scaleKneeRatio: 0.40,     // 半径の40%位置
     showBenchmark: true,      // 100%基準線表示
     benchmarkVal: 100.0,      // 端の値と一致
     showBenchmarkLabel: false, // 100%基準線ラベル表示（不要）

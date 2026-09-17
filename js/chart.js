@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Luxury Dark Style Pure SVG レーダーチャート描画エンジン (chart.js)
  * 
  * 外部ライブラリ不使用、innerHTML不使用、DOM/SVG APIのみで構築。
@@ -64,10 +64,22 @@
 
     /**
      * 値から半径ピクセルへのマッピング
+     * 90%〜100%の微細な変化を視覚的に拡大するため、区分線形（Piecewise）スケールを採用:
+     * - 0% 〜 90%: 半径の 0% 〜 40%（中心から40%位置を90%に設定）
+     * - 90% 〜 100%: 半径の 40% 〜 100%（外側60%の広大な領域に展開し、変化を6倍拡大）
      */
     valueToRadius(value) {
-      const clamped = Math.max(this.scaleMin, Math.min(this.scaleMax, value));
-      const ratio = (clamped - this.scaleMin) / (this.scaleMax - this.scaleMin);
+      // 異常値（NaN, null, undefined, 文字列）に対するゼロ安全フォールバック
+      const safeVal = (typeof value === 'number' && Number.isFinite(value)) ? value : 0;
+      const clamped = Math.max(this.scaleMin, Math.min(this.scaleMax, safeVal));
+      let ratio;
+      if (clamped >= 90) {
+        // 90%〜100% の 10%幅を 半径の 40%〜100%（60%幅）に拡大展開（6倍スケール）
+        ratio = 0.40 + ((clamped - 90) / 10) * 0.60;
+      } else {
+        // 0%〜90% を 半径の 0%〜40% に圧縮マッピング
+        ratio = (clamped / 90) * 0.40;
+      }
       return this.radius * ratio;
     }
 
@@ -153,11 +165,19 @@
         gridGroup.appendChild(outerCircle);
       }
 
-      // 多角形グリッド（0%から端100%まで）
-      for (let level = 1; level <= this.levels; level++) {
-        const levelPct = this.scaleMin + ((this.scaleMax - this.scaleMin) / this.levels) * level;
-        const levelRadius = this.valueToRadius(levelPct);
-        const isOuterEdge = level === this.levels; // 最外周（端100%）
+      // 多角形グリッド（40%位置=90%、90%〜100%の変化を視覚的に捉えやすい新目盛り構成）
+      const gridLevels = [
+        { pct: 60, label: "60%", isAlert: true },
+        { pct: 90, label: "90%", isBase: true },
+        { pct: 92.5, label: "92.5%", isSub: true },
+        { pct: 95, label: "95%", isMid: true },
+        { pct: 97.5, label: "97.5%", isSub: true },
+        { pct: 100, label: "100%", isOuter: true }
+      ];
+
+      gridLevels.forEach((gridItem) => {
+        const levelRadius = this.valueToRadius(gridItem.pct);
+        const isOuterEdge = Boolean(gridItem.isOuter);
         const points = [];
 
         for (let i = 0; i < numAxes; i++) {
@@ -166,38 +186,50 @@
           points.push(`${pos.x.toFixed(1)},${pos.y.toFixed(1)}`);
         }
 
-        const polygon = document.createElementNS(SVG_NS, 'polygon');
-        polygon.setAttribute('points', points.join(' '));
+        const polygon = document.createElementNS(SVG_NS, "polygon");
+        polygon.setAttribute("points", points.join(" "));
         
         if (isOuterEdge) {
           // 最外周端（100%ライン）：淡いソフトローズの破線枠
-          polygon.setAttribute('stroke', this.chartOpts.benchmarkColor || 'rgba(251, 113, 133, 0.75)');
-          polygon.setAttribute('stroke-width', '1.4');
-          polygon.setAttribute('stroke-dasharray', '4,2');
-          polygon.setAttribute('fill', 'none');
+          polygon.setAttribute("stroke", this.chartOpts.benchmarkColor || "rgba(251, 113, 133, 0.75)");
+          polygon.setAttribute("stroke-width", "1.4");
+          polygon.setAttribute("stroke-dasharray", "4,2");
+          polygon.setAttribute("fill", "none");
+        } else if (gridItem.isBase) {
+          // 40%位置の90%ライン（基準の境界線として繊細に強調）
+          polygon.setAttribute("stroke", "rgba(255, 255, 255, 0.22)");
+          polygon.setAttribute("stroke-width", "0.9");
+          polygon.setAttribute("stroke-dasharray", "3,2");
+          polygon.setAttribute("fill", "none");
+        } else if (gridItem.isSub) {
+          // 92.5% / 97.5% の補助線（極細の淡いガイドライン）
+          polygon.setAttribute("stroke", "rgba(255, 255, 255, 0.06)");
+          polygon.setAttribute("stroke-width", "0.5");
+          polygon.setAttribute("fill", "none");
         } else {
-          polygon.setAttribute('stroke', 'rgba(255, 255, 255, 0.10)');
-          polygon.setAttribute('stroke-width', '0.7');
-          polygon.setAttribute('fill', 'none');
+          // 60%・95% などの通常グリッド線
+          polygon.setAttribute("stroke", "rgba(255, 255, 255, 0.11)");
+          polygon.setAttribute("stroke-width", "0.7");
+          polygon.setAttribute("fill", "none");
         }
         gridGroup.appendChild(polygon);
 
-        // レベル目盛り数値（基準線100%の表示は不要のため非表示）
+        // レベル目盛り数値（補助線は非表示、主要な60%, 90%, 95%を配置）
         const showBenchmarkLabel = Boolean(this.chartOpts.showBenchmarkLabel);
-        if (!isOuterEdge || showBenchmarkLabel) {
+        if ((!isOuterEdge || showBenchmarkLabel) && !gridItem.isSub) {
           const scalePos = polarToCartesian(this.cx, this.cy, levelRadius, 0);
-          const scaleText = document.createElementNS(SVG_NS, 'text');
-          scaleText.setAttribute('x', (scalePos.x + 3).toFixed(1));
-          scaleText.setAttribute('y', (scalePos.y + 2).toFixed(1));
-          scaleText.setAttribute('class', isOuterEdge ? 'chart-scale-label-outer' : 'chart-scale-label');
-          scaleText.setAttribute('fill', isOuterEdge ? 'rgba(251, 113, 133, 0.85)' : 'rgba(148, 163, 184, 0.50)');
-          scaleText.setAttribute('font-size', isOuterEdge ? '8.5px' : '7.5px');
-          scaleText.setAttribute('font-weight', isOuterEdge ? '600' : '400');
-          scaleText.setAttribute('font-family', 'monospace');
-          scaleText.textContent = `${Math.round(levelPct)}%`;
+          const scaleText = document.createElementNS(SVG_NS, "text");
+          scaleText.setAttribute("x", (scalePos.x + 3).toFixed(1));
+          scaleText.setAttribute("y", (scalePos.y + 2).toFixed(1));
+          scaleText.setAttribute("class", isOuterEdge ? "chart-scale-label-outer" : "chart-scale-label");
+          scaleText.setAttribute("fill", gridItem.isBase ? "rgba(255, 255, 255, 0.75)" : "rgba(148, 163, 184, 0.55)");
+          scaleText.setAttribute("font-size", gridItem.isBase ? "8.5px" : "7.5px");
+          scaleText.setAttribute("font-weight", gridItem.isBase ? "700" : "500");
+          scaleText.setAttribute("font-family", "monospace");
+          scaleText.textContent = gridItem.label;
           gridGroup.appendChild(scaleText);
         }
-      }
+      });
       svg.appendChild(gridGroup);
 
       // --- 2. 放射軸線 ---
