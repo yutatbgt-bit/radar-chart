@@ -29,9 +29,15 @@
       </div>
 
       <!-- 読み込みボタン周辺 ドロップ＆ファイル選択ゾーン -->
-      <div id="csv-drop-zone" class="header-drop-zone" role="region" aria-label="CSV読み込みドロップエリア">
+      <div id="csv-drop-zone" class="header-drop-zone" role="region" aria-label="CSV読み込みドロップエリア"
+           ondragover="event.preventDefault();event.stopPropagation();this.classList.add('is-drag-over');"
+           ondragleave="event.preventDefault();this.classList.remove('is-drag-over');"
+           ondrop="event.preventDefault();event.stopPropagation();this.classList.remove('is-drag-over');handleInlineCsvDrop(event);">
         <input type="file" id="csv-file-input" class="file-upload-input" accept=".csv,text/csv">
-        <label for="csv-file-input" class="drop-zone-label" tabindex="0" role="button" aria-label="CSVファイルを選択/アップロード">
+        <label for="csv-file-input" class="drop-zone-label" tabindex="0" role="button" aria-label="CSVファイル選択/ドロップ"
+               ondragover="event.preventDefault();event.stopPropagation();document.getElementById('csv-drop-zone').classList.add('is-drag-over');"
+               ondragleave="event.preventDefault();"
+               ondrop="event.preventDefault();event.stopPropagation();document.getElementById('csv-drop-zone').classList.remove('is-drag-over');handleInlineCsvDrop(event);">
           <div class="drop-zone-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -39,10 +45,9 @@
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
           </div>
-          <span class="drop-zone-main-text">CSVファイルを選択/アップロード</span>
+          <span class="drop-zone-main-text">CSVファイル選択 / ドロップ</span>
         </label>
       </div>
-
       <!-- クリアボタン（アイコン表示のみ） -->
       <button type="button" id="btn-clear-data" class="btn-clear" title="全店舗の数値をクリアします（店舗数・項目は維持されます）" aria-label="全店舗の数値をクリア">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

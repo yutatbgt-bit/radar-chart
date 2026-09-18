@@ -1299,3 +1299,7 @@ main {
   border-color: rgba(2, 132, 199, 0.35);
   color: #0284c7;
 }
+/* ドロップゾーン子要素のイベント透過（ドラッグ＆ドロップの誤解除防止） */
+.drop-zone-label * {
+  pointer-events: none;
+}

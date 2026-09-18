@@ -516,6 +516,45 @@
    * CSVテキストを読み込みカンバンを構築
    * @param {string} csvText 
    */
+
+  // =========================================================================
+  // インライン属性およびドロップエリア用 CSVファイルドロップハンドラ
+  // =========================================================================
+  window.handleInlineCsvDrop = function(e) {
+    if (!e) return;
+    const dt = e.dataTransfer;
+    if (!dt || !dt.files || dt.files.length === 0) return;
+    const file = dt.files[0];
+    const fileName = file.name || '';
+
+    const isCsv = fileName.toLowerCase().endsWith('.csv') ||
+                  file.type.includes('csv') ||
+                  file.type.includes('text') ||
+                  fileName.toLowerCase().endsWith('.txt');
+
+    if (!isCsv) {
+      showToast('CSV形式（.csv）のファイルを選択してください', 'error');
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      showToast('ファイルサイズが大きすぎます（20MB以内）', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      currentCsvFileName = fileName || '';
+      showToast(`「${fileName}」を読み込み中...`, 'info');
+      loadAndProcessCsv(content);
+    };
+    reader.onerror = () => {
+      showToast('ファイルの読み込みに失敗しました', 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
   function loadAndProcessCsv(csvText) {
     try {
       const matrix = window.SafeCsvParser.parse(csvText);
@@ -675,7 +714,7 @@
           return;
         }
 
-        if (file.size > 3 * 1024 * 1024) {
+        if (file.size > 20 * 1024 * 1024) {
           showToast('ファイルサイズが上限（3MB）を超えています。', 'error');
           return;
         }
