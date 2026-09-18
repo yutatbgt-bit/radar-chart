@@ -257,18 +257,50 @@
           if (this.config && window.RadarAppTotalStoreData && window.RadarAppTotalStoreData.metrics && this.store && this.store.categoryId !== 'total') {
             const totalGroup = document.createElementNS(SVG_NS, 'g');
             totalGroup.setAttribute('class', 'chart-total-data');
-            const totalPoints = [];
-            this.metrics.forEach((metric, i) => {
-              const angle = i * angleStep;
-              let rawVal = window.RadarAppTotalStoreData.metrics[metric.key];
-              if (rawVal === undefined) rawVal = window.RadarAppTotalStoreData.metrics[metric.id];
-              if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
-              const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
-              const r = this.valueToRadius(clampedVal);
-              const pos = polarToCartesian(this.cx, this.cy, r, angle);
-              totalPoints.push(pos.x.toFixed(1) + "," + pos.y.toFixed(1));
-            });
-            const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#fbcfe8', fillStart: 'rgba(251,207,232,0.3)' }};
+                          const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#f472b6', fillStart: 'rgba(244,114,182,0.3)' }};
+              const totalPoints = [];
+              this.metrics.forEach((metric, i) => {
+                const angle = i * angleStep;
+                let rawVal = window.RadarAppTotalStoreData.metrics[metric.key];
+                if (rawVal === undefined) rawVal = window.RadarAppTotalStoreData.metrics[metric.id];
+                if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
+                
+                const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
+                const r = this.valueToRadius(clampedVal);
+                const pos = polarToCartesian(this.cx, this.cy, r, angle);
+                totalPoints.push(pos.x.toFixed(1) + "," + pos.y.toFixed(1));
+                
+                // 全店計の数値ラベル（自店舗の邪魔にならないよう内側に小さく配置）
+                if (this.chartOpts.showValuesOnNodes) {
+                  const valText = document.createElementNS(SVG_NS, 'text');
+                  valText.setAttribute('font-size', '8px');
+                  valText.setAttribute('fill', totalTheme.chartColor.stroke);
+                  valText.setAttribute('opacity', '0.85');
+                  valText.setAttribute('font-weight', '600');
+                  valText.setAttribute('font-family', 'monospace');
+                  valText.textContent = `${rawVal.toFixed(1)}%`;
+                  
+                  const sinA = Math.sin(angle);
+                  const cosA = Math.cos(angle);
+                  // ノードから少し内側に引き寄せる（中心に向かってオフセット）
+                  const textR = Math.max(10, r - 12);
+                  const textPos = polarToCartesian(this.cx, this.cy, textR, angle);
+                  
+                  if (Math.abs(sinA) < 0.1) {
+                    valText.setAttribute('text-anchor', 'middle');
+                  } else if (sinA > 0) {
+                    valText.setAttribute('text-anchor', 'end');
+                    textPos.x -= 2;
+                  } else {
+                    valText.setAttribute('text-anchor', 'start');
+                    textPos.x += 2;
+                  }
+                  
+                  valText.setAttribute('x', textPos.x);
+                  valText.setAttribute('y', textPos.y + 3);
+                  totalGroup.appendChild(valText);
+                }
+              });
             const totalFillPoly = document.createElementNS(SVG_NS, 'polygon');
             totalFillPoly.setAttribute('points', totalPoints.join(' '));
             totalFillPoly.setAttribute('fill', totalTheme.chartColor.fillStart || 'rgba(251,207,232,0.3)');
