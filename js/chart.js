@@ -266,7 +266,7 @@
               const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
               const r = this.valueToRadius(clampedVal);
               const pos = polarToCartesian(this.cx, this.cy, r, angle);
-              totalPoints.push(${pos.x.toFixed(1)},);
+              totalPoints.push(pos.x.toFixed(1) + "," + pos.y.toFixed(1));
             });
             const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#fbcfe8', fillStart: 'rgba(251,207,232,0.3)' }};
             const totalFillPoly = document.createElementNS(SVG_NS, 'polygon');
