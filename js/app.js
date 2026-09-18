@@ -52,7 +52,8 @@
     if (!theme || !totalStoreData) return;
 
     const card = document.createElement('article');
-    card.className = 'kanban-card';
+    // クラスを他のカードと同じにしてCSSを合わせる
+    card.className = 'store-kanban-card';
     card.setAttribute('data-store', totalStoreData.storeName);
     card.setAttribute('role', 'button');
     card.setAttribute('tabindex', '0');
@@ -61,28 +62,24 @@
     });
 
     const cardHeader = document.createElement('div');
-    cardHeader.className = 'kanban-card-header';
+    cardHeader.className = 'card-header';
     cardHeader.style.justifyContent = 'center';
 
-    const storeNameEl = document.createElement('h3');
-    storeNameEl.className = 'kanban-card-title';
+    const storeNameEl = document.createElement('h2');
+    storeNameEl.className = 'card-store-name';
     storeNameEl.style.fontSize = '1.25rem';
     storeNameEl.textContent = totalStoreData.storeName;
 
     cardHeader.appendChild(storeNameEl);
-
-    const chartWrapper = document.createElement('div');
-    chartWrapper.className = 'kanban-card-chart-wrapper';
-    
-    const canvas = document.createElement('canvas');
-    chartWrapper.appendChild(canvas);
-
     card.appendChild(cardHeader);
-    card.appendChild(chartWrapper);
+
+    const chartArea = document.createElement('div');
+    chartArea.className = 'card-chart-area';
+    card.appendChild(chartArea);
+
+    new window.StoreRadarChart(chartArea, totalStoreData, config, theme);
 
     section.appendChild(card);
-
-    drawRadarChart(canvas, totalStoreData, theme);
   }
 
   /**
