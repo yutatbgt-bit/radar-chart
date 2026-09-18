@@ -285,30 +285,245 @@
     });
 
     renderKanbanBoard(clearedCategories);
-    currentCsvFileName = '';
-    RadarStorage.clearAll().then(function() {
-      if (!silent) {
-        showToast('全店舗の数値をクリアしました（店舗構成・評価項目は維持しています）', 'info');
-      }
-    }).catch(function() {
-      if (!silent) {
-        showToast('全店舗の数値をクリアしました', 'info');
-      }
-    });
+    if (!silent) {
+      showToast('全店舗の数値をクリアしました（店舗構成・評価項目は維持されています）', 'info');
+    }
   }
 
   const THEME_STORAGE_KEY = 'radar_chart_theme';
 
+  // ==========================================================================
+  // ハイブリッド・ストレージマネージャー (IndexedDB + localStorage フォールバック)
+  // ==========================================================================
+  const RadarStorage = (function() {
+    const DB_NAME = 'RadarChartAppDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'radar_store';
+
+    function openDB() {
+      return new Promise(function(resolve, reject) {
+        if (!window.indexedDB) {
+          return reject(new Error('IndexedDB not supported'));
+        }
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = function(e) {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        req.onsuccess = function(e) { resolve(e.target.result); };
+        req.onerror = function(e) { reject(e.target.error); };
+      });
+    }
+
+    return {
+      get: function(key) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(key);
+            req.onsuccess = function() { resolve(req.result); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            const raw = localStorage.getItem('rc_' + key);
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        });
+      },
+      set: function(key, val) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put(val, key);
+            req.onsuccess = function() { resolve(); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            localStorage.setItem('rc_' + key, JSON.stringify(val));
+          } catch (e) {
+            console.warn('[RadarStorage] localStorage set failed:', e);
+          }
+        });
+      },
+      clearAll: function() {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.clear();
+            req.onsuccess = function() { resolve(); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            localStorage.removeItem('rc_csv_state');
+          } catch (e) {}
+        });
+      }
+    };
+  })();
+
+  const VALID_THEMES = Object.freeze(['dark', 'light']);
+
+  /**
+   * テーマ（ライト/ダーク）の初期化と切り替えイベントリスナー設定
+   */
+  function initThemeToggle() {
+    const themeBtn = document.getElementById('btn-theme-toggle');
+    const labelEl = document.getElementById('theme-toggle-label');
+    if (!themeBtn) return;
+
+    // 安全に保存されたテーマを読み込み（ホワイトリスト検証）
+    let currentTheme = 'dark';
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved && VALID_THEMES.includes(saved)) {
+        currentTheme = saved;
+      }
+    } catch (e) {
+      // localStorageがアクセス不可（プライベートブラウズ等）の場合はメモリ上でのみ動作
+      currentTheme = 'dark';
+    }
+
+    /**
+     * テーマをDOMに反映
+     * @param {string} theme 'dark' | 'light'
+     */
+    function applyTheme(theme) {
+      const isLight = theme === 'light';
+      if (isLight) {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.setAttribute('aria-label', 'ダークモードに切り替え');
+        themeBtn.setAttribute('title', 'ダークモードに切り替えます');
+        themeBtn.setAttribute('aria-pressed', 'true');
+        if (labelEl) labelEl.textContent = 'ダーク';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.setAttribute('aria-label', 'ライトモードに切り替え');
+        themeBtn.setAttribute('title', 'ライトモードに切り替えます');
+        themeBtn.setAttribute('aria-pressed', 'false');
+        if (labelEl) labelEl.textContent = 'ライト';
+      }
+    }
+
+    // 初期テーマの適用
+    applyTheme(currentTheme);
+
+    // クリック時のトグル切り替え
+    themeBtn.addEventListener('click', () => {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      applyTheme(currentTheme);
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, currentTheme);
+      } catch (e) {
+        // 保存失敗時は無視
+      }
+    });
+  }
+
+  /**
+   * 全画面表示切り替え機能の初期化
+   */
+  function initFullscreenToggle() {
+    const fsBtn = document.getElementById('btn-fullscreen-toggle');
+    if (!fsBtn) return;
+
+    // ブラウザのFullscreen APIサポート確認
+    const isFullscreenSupported = Boolean(
+      document.fullscreenEnabled ||
+      document.webkitFullscreenEnabled ||
+      document.mozFullScreenEnabled ||
+      document.msFullscreenEnabled
+    );
+
+    if (!isFullscreenSupported) {
+      fsBtn.style.display = 'none';
+      return;
+    }
+
+    function isFullscreenActive() {
+      return Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+    }
+
+    function updateFullscreenUI() {
+      const active = isFullscreenActive();
+      fsBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      fsBtn.setAttribute('title', active ? '全画面表示を解除します' : '全画面表示に切り替えます');
+      fsBtn.setAttribute('aria-label', active ? '全画面表示を解除' : '全画面表示に切り替え');
+    }
+
+    function toggleFullscreen() {
+      if (!isFullscreenActive()) {
+        const docEl = document.documentElement;
+        const requestMethod = docEl.requestFullscreen ||
+                              docEl.webkitRequestFullscreen ||
+                              docEl.mozRequestFullScreen ||
+                              docEl.msRequestFullscreen;
+        if (requestMethod) {
+          const promise = requestMethod.call(docEl);
+          if (promise && promise.catch) {
+            promise.catch(() => {
+              showToast('全画面表示への切り替えが拒否されました', 'info');
+            });
+          }
+        }
+      } else {
+        const exitMethod = document.exitFullscreen ||
+                           document.webkitExitFullscreen ||
+                           document.mozCancelFullScreen ||
+                           document.msExitFullscreen;
+        if (exitMethod) {
+          const promise = exitMethod.call(document);
+          if (promise && promise.catch) {
+            promise.catch(() => {
+              showToast('全画面表示の解除に失敗しました', 'info');
+            });
+          }
+        }
+      }
+    }
+
+    fsBtn.addEventListener('click', () => {
+      toggleFullscreen();
+    });
+
+    const fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+    fsEvents.forEach((evt) => {
+      document.addEventListener(evt, () => {
+        updateFullscreenUI();
+        requestAnimationFrame(() => {
+          alignCardsContainersHeight();
+        });
+      });
+    });
+
+    updateFullscreenUI();
+  }
+
+  /**
+   * CSVテキストを読み込みカンバンを構築
+   * @param {string} csvText 
+   */
+
+  // =========================================================================
+  // インライン属性およびドロップエリア用 CSVファイルドロップハンドラ
     // =========================================================================
   // CSVファイル処理・永続化・カンバン描画ロジック
   // =========================================================================
 
-  /**
-   * CSVテキストを安全にパースしてカンバンボードを描画し、永続化保存する
-   * @param {string} csvText 
-   * @param {string} [fileName] 
-   * @param {boolean} [isRestore=false] 
-   */
   function loadAndProcessCsv(csvText, fileName = '', isRestore = false) {
     try {
       const matrix = window.SafeCsvParser.parse(csvText);
@@ -328,17 +543,13 @@
       }
 
       const totalStores = kanbanCategories.reduce((acc, c) => acc + c.stores.length, 0);
-      showToast(データ読み込み完了: 全店舗のカンバンを描画しました。, 'success');
+      showToast(データ読み込み完了: 全${totalStores}店舗のカンバンを描画しました。, 'success');
     } catch (err) {
       console.error('CSVパースエラー:', err);
-      showToast(エラー: , 'error');
+      showToast(エラー: ${err.message}, 'error');
     }
   }
 
-  /**
-   * 単一のFileオブジェクトを安全に検証・読込する共通関数
-   * @param {File} file 
-   */
   function processCsvFile(file) {
     if (!file) return;
 
@@ -362,7 +573,7 @@
     reader.onload = (event) => {
       const content = event.target.result;
       currentCsvFileName = fileName || '';
-      showToast(「」読み込み中..., 'info');
+      showToast(「${fileName}」読み込み中..., 'info');
       loadAndProcessCsv(content, fileName, false);
     };
     reader.onerror = () => {
@@ -371,7 +582,6 @@
     reader.readAsText(file, 'UTF-8');
   }
 
-  // 後方互換性用インラインハンドラ
   window.handleInlineCsvDrop = function(e) {
     if (!e) return;
     const dt = e.dataTransfer;
@@ -379,25 +589,20 @@
     processCsvFile(dt.files[0]);
   };
 
-  /**
-   * 起動時に保存済みCSVデータを復元
-   */
   function restorePersistedData() {
     RadarStorage.get('csv_state').then(function(state) {
       if (!state || !state.csvText) return;
       currentCsvFileName = state.fileName || '';
       loadAndProcessCsv(state.csvText, currentCsvFileName, true);
-      showToast(前回保存されたデータ（）を復元しました。, 'info');
+      showToast(前回保存されたデータ（${currentCsvFileName || 'CSV'}）を復元しました。, 'info');
     }).catch(function(err) {
       console.warn('[restorePersistedData] error:', err);
     });
   }
 
   function init() {
-    // 初期は店舗構成・項目を維持したクリア状態（定数設定）で画面描画
     clearAllStoreData(true);
 
-    // ファイルアップロードイベント (input[type=file])
     const fileInput = document.getElementById('csv-file-input');
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {
@@ -408,7 +613,6 @@
       });
     }
 
-    // クリアボタン（全店舗数値クリア＆保存データ削除）
     const clearBtn = document.getElementById('btn-clear-data');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
@@ -416,19 +620,14 @@
       });
     }
 
-    // テーマ切り替え
     initThemeToggle();
-
-    // 全画面表示切り替え
     initFullscreenToggle();
 
-    // モーダル閉じるイベント
     const closeBtn = document.getElementById('modal-close-btn');
     if (closeBtn) {
       closeBtn.addEventListener('click', closeStoreModal);
     }
 
-    // ウィンドウリサイズ対応
     window.addEventListener('resize', () => {
       alignCardsContainersHeight();
     });
@@ -442,7 +641,6 @@
       });
     }
 
-    // 起動時に保存済みデータを復元
     restorePersistedData();
 
     document.addEventListener('keydown', (e) => {
@@ -451,19 +649,14 @@
       }
     });
 
-    // =========================================================================
-    // ドラッグ＆ドロップ処理（ドロップゾーン ＋ 画面全体サポート）
-    // =========================================================================
     const dropZone = document.getElementById('csv-drop-zone');
 
-    // ブラウザデフォルトの意図しない画面外ファイルドロップ（別タブ遷移）防止
     window.addEventListener('dragover', (e) => {
       e.preventDefault();
     });
 
     window.addEventListener('drop', (e) => {
       e.preventDefault();
-      // ユーザーがドロップゾーン以外の画面領域にCSVをドロップした場合でも受け付ける
       const files = e.dataTransfer && e.dataTransfer.files;
       if (files && files.length > 0) {
         const file = files[0];
@@ -476,14 +669,12 @@
 
     if (dropZone) {
       let zoneDragCounter = 0;
-
       dropZone.addEventListener('dragenter', (e) => {
         e.preventDefault();
         e.stopPropagation();
         zoneDragCounter++;
         dropZone.classList.add('is-drag-over');
       });
-
       dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -492,7 +683,6 @@
         }
         dropZone.classList.add('is-drag-over');
       });
-
       dropZone.addEventListener('dragleave', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -502,22 +692,18 @@
           dropZone.classList.remove('is-drag-over');
         }
       });
-
       dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         e.stopPropagation();
         zoneDragCounter = 0;
         dropZone.classList.remove('is-drag-over');
-
         const files = e.dataTransfer && e.dataTransfer.files;
         if (!files || files.length === 0) return;
-
         processCsvFile(files[0]);
       });
     }
   }
 
-  // DOMContentLoadedで初期化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
