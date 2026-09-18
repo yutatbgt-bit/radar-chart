@@ -601,6 +601,9 @@
       const storeMap = window.SafeCsvParser.extractStores(matrix, config);
       const kanbanCategories = window.SafeCsvParser.buildKanban(storeMap, config);
       const totalStoreData = window.SafeCsvParser.buildTotalStore(storeMap, config, matrix);
+      
+      // 他のチャート描画時に比較データとして使えるようconfigに保持しておく
+      config.totalStoreData = totalStoreData;
 
       renderTotalStoreSection(totalStoreData);
       renderKanbanBoard(kanbanCategories);
