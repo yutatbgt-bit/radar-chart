@@ -102,26 +102,26 @@ window.RadarAppConfig = deepFreeze({
     }
   ],
 
+    // 全店計専用のデザインテーマ
+  totalStoreTheme: {
+    id: "total",
+    name: "全店計",
+    badgeColor: "#f1f5f9",
+    badgeBg: "rgba(241, 245, 249, 0.16)",
+    badgeBorder: "rgba(241, 245, 249, 0.4)",
+    chartColor: {
+      stroke: "#e2e8f0",
+      fillStart: "rgba(241, 245, 249, 0.52)",
+      fillEnd: "rgba(241, 245, 249, 0.12)",
+      nodeColor: "#f8fafc",
+      nodeGlow: "rgba(241, 245, 249, 0.55)"
+    }
+  },
+
   // 4列カンバンビューのカテゴリ＆店舗並び順 (全24店舗)
   // 明るく上品なマイルドカラーパレット（非ビビッド・柔らかなミルキートーン）
   categories: [
-    {
-      id: "total",
-      name: "全店計",
-      badgeColor: "#f1f5f9",    // プレミアムプラチナ
-      badgeBg: "rgba(241, 245, 249, 0.16)",
-      badgeBorder: "rgba(241, 245, 249, 0.4)",
-      chartColor: {
-        stroke: "#e2e8f0",
-        fillStart: "rgba(241, 245, 249, 0.52)",
-        fillEnd: "rgba(241, 245, 249, 0.12)",
-        nodeColor: "#f8fafc",
-        nodeGlow: "rgba(241, 245, 249, 0.55)"
-      },
-      stores: [
-        { name: "全店計", alias: ["全店計", "合計", "全店"] }
-      ]
-    },
+    
     {
       id: "large",
       name: "大型店",

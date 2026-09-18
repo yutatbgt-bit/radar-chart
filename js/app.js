@@ -37,6 +37,55 @@
   }
 
   /**
+   * 全店計ダッシュボードセクションのレンダリング
+   * @param {Object} totalStoreData 
+   */
+  function renderTotalStoreSection(totalStoreData) {
+    const section = document.getElementById('total-store-section');
+    if (!section) return;
+
+    while (section.firstChild) {
+      section.removeChild(section.firstChild);
+    }
+
+    const theme = config.totalStoreTheme;
+    if (!theme || !totalStoreData) return;
+
+    const card = document.createElement('article');
+    card.className = 'kanban-card';
+    card.setAttribute('data-store', totalStoreData.storeName);
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('click', () => {
+      openStoreModal(totalStoreData, theme);
+    });
+
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'kanban-card-header';
+    cardHeader.style.justifyContent = 'center';
+
+    const storeNameEl = document.createElement('h3');
+    storeNameEl.className = 'kanban-card-title';
+    storeNameEl.style.fontSize = '1.25rem';
+    storeNameEl.textContent = totalStoreData.storeName;
+
+    cardHeader.appendChild(storeNameEl);
+
+    const chartWrapper = document.createElement('div');
+    chartWrapper.className = 'kanban-card-chart-wrapper';
+    
+    const canvas = document.createElement('canvas');
+    chartWrapper.appendChild(canvas);
+
+    card.appendChild(cardHeader);
+    card.appendChild(chartWrapper);
+
+    section.appendChild(card);
+
+    drawRadarChart(canvas, totalStoreData, theme);
+  }
+
+  /**
    * 4列カンバンボードのレンダリング
    * @param {Array} kanbanCategories 
    */
@@ -529,7 +578,9 @@
       const matrix = window.SafeCsvParser.parse(csvText);
       const storeMap = window.SafeCsvParser.extractStores(matrix, config);
       const kanbanCategories = window.SafeCsvParser.buildKanban(storeMap, config);
+      const totalStoreData = window.SafeCsvParser.buildTotalStore(storeMap, config);
 
+      renderTotalStoreSection(totalStoreData);
       renderKanbanBoard(kanbanCategories);
 
       if (!isRestore && csvText) {
