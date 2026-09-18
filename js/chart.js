@@ -252,46 +252,41 @@
       }
       svg.appendChild(axisGroup);
 
-              // --- 2.5 全店計（背景比較用）ポリゴン ---
-        if (this.config.totalStoreData && this.store.categoryId !== 'total') {
-          const totalGroup = document.createElementNS(SVG_NS, 'g');
-          totalGroup.setAttribute('class', 'chart-total-data');
-          
-          const totalPoints = [];
-          this.metrics.forEach((metric, i) => {
-            const angle = i * angleStep;
-            const rawVal = this.config.totalStoreData.metrics[metric.key] !== undefined
-              ? this.config.totalStoreData.metrics[metric.key]
-              : (this.config.totalStoreData.metrics[metric.id] || 0);
-            
-            const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
-            const r = this.valueToRadius(clampedVal);
-            const pos = polarToCartesian(this.cx, this.cy, r, angle);
-            totalPoints.push(`${pos.x.toFixed(1)},${pos.y.toFixed(1)}`);
-          });
-          
-          const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#fbcfe8', fillStart: 'rgba(251,207,232,0.3)' }};
-          
-          // 塗りつぶし（超薄め）
-          const totalFillPoly = document.createElementNS(SVG_NS, 'polygon');
-          totalFillPoly.setAttribute('points', totalPoints.join(' '));
-          totalFillPoly.setAttribute('fill', totalTheme.chartColor.fillStart);
-          totalFillPoly.setAttribute('opacity', '0.2');
-          totalGroup.appendChild(totalFillPoly);
-          
-          // 枠線（破線）
-          const totalPoly = document.createElementNS(SVG_NS, 'polygon');
-          totalPoly.setAttribute('points', totalPoints.join(' '));
-          totalPoly.setAttribute('fill', 'none');
-          totalPoly.setAttribute('stroke', totalTheme.chartColor.stroke);
-          totalPoly.setAttribute('stroke-width', '1.5');
-          totalPoly.setAttribute('stroke-dasharray', '4, 4');
-          totalPoly.setAttribute('stroke-opacity', '0.8');
-          totalGroup.appendChild(totalPoly);
-          
-          svg.appendChild(totalGroup);
+        // --- 2.5 全店計（背景比較用）ポリゴン ---
+        try {
+          if (this.config && this.config.totalStoreData && this.config.totalStoreData.metrics && this.store && this.store.categoryId !== 'total') {
+            const totalGroup = document.createElementNS(SVG_NS, 'g');
+            totalGroup.setAttribute('class', 'chart-total-data');
+            const totalPoints = [];
+            this.metrics.forEach((metric, i) => {
+              const angle = i * angleStep;
+              let rawVal = this.config.totalStoreData.metrics[metric.key];
+              if (rawVal === undefined) rawVal = this.config.totalStoreData.metrics[metric.id];
+              if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
+              const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
+              const r = this.valueToRadius(clampedVal);
+              const pos = polarToCartesian(this.cx, this.cy, r, angle);
+              totalPoints.push(${pos.x.toFixed(1)},);
+            });
+            const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#fbcfe8', fillStart: 'rgba(251,207,232,0.3)' }};
+            const totalFillPoly = document.createElementNS(SVG_NS, 'polygon');
+            totalFillPoly.setAttribute('points', totalPoints.join(' '));
+            totalFillPoly.setAttribute('fill', totalTheme.chartColor.fillStart || 'rgba(251,207,232,0.3)');
+            totalFillPoly.setAttribute('opacity', '0.2');
+            totalGroup.appendChild(totalFillPoly);
+            const totalPoly = document.createElementNS(SVG_NS, 'polygon');
+            totalPoly.setAttribute('points', totalPoints.join(' '));
+            totalPoly.setAttribute('fill', 'none');
+            totalPoly.setAttribute('stroke', totalTheme.chartColor.stroke || '#fbcfe8');
+            totalPoly.setAttribute('stroke-width', '1.5');
+            totalPoly.setAttribute('stroke-dasharray', '4, 4');
+            totalPoly.setAttribute('stroke-opacity', '0.8');
+            totalGroup.appendChild(totalPoly);
+            svg.appendChild(totalGroup);
+          }
+        } catch (e) {
+          console.error('Total store background overlay error:', e);
         }
-
         // --- 3. 実測値ポリゴン（ラグジュアリーグロー＆グラデーション：クリア時は未描画） ---
       if (!this.store.isCleared) {
         const dataGroup = document.createElementNS(SVG_NS, 'g');
