@@ -621,7 +621,7 @@
       const totalStores = kanbanCategories.reduce((acc, c) => acc + c.stores.length, 0);
       showToast(`データ読み込み完了: 全${totalStores}店舗のカンバンを描画しました。`, 'success');
     } catch (err) {
-      console.error('CSVパースエラー:', err);
+      console.error('CSVパースエラー:', err); document.body.innerHTML += '<div style="position:fixed; top:10px; left:10px; background:red; color:white; z-index:9999; padding:20px; border:2px solid white; border-radius:8px;"><h3>JavaScript Error</h3><pre>' + err.stack + '</pre></div>';
       showToast(`エラー: ${err.message}`, 'error');
     }
   }
