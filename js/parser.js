@@ -132,7 +132,7 @@
       let rawStoreName = sanitizeCell(row[1] || '');
 
       // 合計行や空行はスキップ
-      if (!rawStoreName || rawStoreName.includes('計') || rawStoreName.includes('店コード/店名')) {
+      if (!rawStoreName || (rawStoreName.includes('計') && !rawStoreName.includes('全店') && !rawStoreName.includes('合計')) || rawStoreName.includes('店コード/店名')) {
         continue;
       }
 
