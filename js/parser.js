@@ -234,11 +234,77 @@
     });
   }
 
+  /**
+   * 全店計専用のデータ構造を構築する
+   * CSV内に「全店計」「合計」「全店」があれば抽出し、なければ全店舗平均から算出する
+   */
+  function buildTotalStoreData(storeMap, config) {
+    const metrics = config.metrics || [];
+    const aliases = ["全店計", "合計", "全店"];
+    let matchedRecord = null;
+    
+    // エイリアスで検索
+    for (const alias of aliases) {
+      if (storeMap.has(alias)) {
+        matchedRecord = storeMap.get(alias);
+        break;
+      }
+    }
+    if (!matchedRecord) {
+      for (const [csvName, record] of storeMap.entries()) {
+        if (aliases.some(a => csvName.includes(a) || a.includes(csvName))) {
+          matchedRecord = record;
+          break;
+        }
+      }
+    }
+
+    let resultMetrics = {};
+    if (matchedRecord) {
+      resultMetrics = matchedRecord.metrics;
+    } else {
+      // 平均値の自動算出
+      if (storeMap.size > 0) {
+        const allStores = Array.from(storeMap.values());
+        metrics.forEach(m => {
+          let sum = 0;
+          let count = 0;
+          allStores.forEach(s => {
+            const val = s.metrics[m.id];
+            if (typeof val === 'number' && !isNaN(val)) {
+              sum += val;
+              count++;
+            }
+          });
+          const avg = count > 0 ? (sum / count) : 0;
+          const roundedAvg = Math.round(avg * 10) / 10;
+          resultMetrics[m.key] = roundedAvg;
+          resultMetrics[m.id] = roundedAvg;
+        });
+      } else {
+        metrics.forEach(m => {
+          resultMetrics[m.key] = 0;
+          resultMetrics[m.id] = 0;
+        });
+      }
+    }
+
+    return {
+      storeName: "全店計",
+      csvName: matchedRecord ? matchedRecord.rawName : "自動算出",
+      code: matchedRecord ? matchedRecord.code : "",
+      metrics: resultMetrics,
+      categoryId: "total",
+      categoryName: "全店計"
+    };
+  }
+
   // グローバル公開
   root.SafeCsvParser = Object.freeze({
     parse: parseCsvToMatrix,
     extractStores: extractStoreRecords,
-    buildKanban: buildKanbanData
+    buildKanban: buildKanbanData,
+    buildTotalStore: buildTotalStoreData
   });
 
 })(typeof window !== 'undefined' ? window : this);
