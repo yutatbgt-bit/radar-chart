@@ -543,10 +543,10 @@
       }
 
       const totalStores = kanbanCategories.reduce((acc, c) => acc + c.stores.length, 0);
-      showToast(データ読み込み完了: 全${totalStores}店舗のカンバンを描画しました。, 'success');
+      showToast(`データ読み込み完了: 全${totalStores}店舗のカンバンを描画しました。`, 'success');
     } catch (err) {
       console.error('CSVパースエラー:', err);
-      showToast(エラー: ${err.message}, 'error');
+      showToast(`エラー: ${err.message}`, 'error');
     }
   }
 
@@ -573,7 +573,7 @@
     reader.onload = (event) => {
       const content = event.target.result;
       currentCsvFileName = fileName || '';
-      showToast(「${fileName}」読み込み中..., 'info');
+      showToast(`「${fileName}」読み込み中...`, 'info');
       loadAndProcessCsv(content, fileName, false);
     };
     reader.onerror = () => {
@@ -594,7 +594,7 @@
       if (!state || !state.csvText) return;
       currentCsvFileName = state.fileName || '';
       loadAndProcessCsv(state.csvText, currentCsvFileName, true);
-      showToast(前回保存されたデータ（${currentCsvFileName || 'CSV'}）を復元しました。, 'info');
+      showToast(`前回保存されたデータ（${currentCsvFileName || 'CSV'}）を復元しました。`, 'info');
     }).catch(function(err) {
       console.warn('[restorePersistedData] error:', err);
     });
