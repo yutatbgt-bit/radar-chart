@@ -280,24 +280,28 @@
                   valText.setAttribute('font-family', 'monospace');
                   valText.textContent = `${rawVal.toFixed(1)}%`;
                   
-                  const sinA = Math.sin(angle);
+                                    const sinA = Math.sin(angle);
                   const cosA = Math.cos(angle);
-                  // ノードから少し内側に引き寄せる（中心に向かってオフセット）
-                  const textR = Math.max(10, r - 12);
-                  const textPos = polarToCartesian(this.cx, this.cy, textR, angle);
+                  
+                  // 自店舗ラベルの外側になるよう、外側へ大きくオフセット
+                  const distBase = (this.size >= 400) ? 28 : 22;
+                  
+                  let textX = pos.x + distBase * sinA;
+                  let textY = pos.y - distBase * cosA;
                   
                   if (Math.abs(sinA) < 0.1) {
                     valText.setAttribute('text-anchor', 'middle');
                   } else if (sinA > 0) {
-                    valText.setAttribute('text-anchor', 'end');
-                    textPos.x -= 2;
-                  } else {
                     valText.setAttribute('text-anchor', 'start');
-                    textPos.x += 2;
+                    textX += 2;
+                  } else {
+                    valText.setAttribute('text-anchor', 'end');
+                    textX -= 2;
                   }
                   
-                  valText.setAttribute('x', textPos.x);
-                  valText.setAttribute('y', textPos.y + 3);
+                  valText.setAttribute('x', textX);
+                  valText.setAttribute('y', textY + 3);
+                  
                   totalGroup.appendChild(valText);
                 }
               });
