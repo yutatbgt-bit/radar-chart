@@ -359,7 +359,19 @@
             valText.setAttribute('font-size', this.size >= 400 ? '11px' : '9.5px');
             valText.setAttribute('font-weight', '700');
             valText.setAttribute('font-family', 'monospace');
-            valText.textContent = `${actualVal.toFixed(2)}%`;
+                          let textContentStr = `${actualVal.toFixed(2)}%`;
+              let totalRawVal = undefined;
+              if (window.RadarAppTotalStoreData && window.RadarAppTotalStoreData.metrics) {
+                totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.key];
+                if (totalRawVal === undefined) totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.id];
+              }
+              const hasTotal = totalRawVal !== undefined && !isNaN(totalRawVal) && totalRawVal !== null;
+              
+              // i=0,1,2,3 は横(右)に並べる
+              if (hasTotal && node.index !== 4) {
+                textContentStr += ` (${totalRawVal.toFixed(2)}%)`;
+              }
+              valText.textContent = textContentStr;
 
             // チャート線・ノード・外枠線に被らないよう、角度（三角関数）に基づいて全自動で外側へオフセット
             const isLargeModal = this.size >= 400;
@@ -405,8 +417,23 @@
             valText.setAttribute('x', textX.toFixed(1));
             valText.setAttribute('y', textY.toFixed(1));
             valText.setAttribute('text-anchor', textAnchor);
-            valText.setAttribute('dominant-baseline', dominantBaseline);
-            dataGroup.appendChild(valText);
+                          valText.setAttribute('dominant-baseline', dominantBaseline);
+              dataGroup.appendChild(valText);
+              
+              // 一品単価 (i=4) の場合は下側に全店計を描画する
+              if (hasTotal && node.index === 4) {
+                const totalText = document.createElementNS(SVG_NS, 'text');
+                totalText.setAttribute('class', 'chart-node-val');
+                totalText.setAttribute('font-size', this.size >= 400 ? '11px' : '9.5px');
+                totalText.setAttribute('font-weight', '700');
+                totalText.setAttribute('font-family', 'monospace');
+                totalText.setAttribute('text-anchor', textAnchor);
+                totalText.setAttribute('dominant-baseline', dominantBaseline);
+                totalText.setAttribute('x', textX.toFixed(1));
+                totalText.setAttribute('y', (textY + (this.size >= 400 ? 12 : 10)).toFixed(1));
+                totalText.textContent = `(${totalRawVal.toFixed(2)}%)`;
+                dataGroup.appendChild(totalText);
+              }
           }
         });
         svg.appendChild(dataGroup);
