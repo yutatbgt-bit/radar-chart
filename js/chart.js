@@ -365,7 +365,7 @@
                 totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.key];
                 if (totalRawVal === undefined) totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.id];
               }
-              const hasTotal = totalRawVal !== undefined && !isNaN(totalRawVal) && totalRawVal !== null;
+              const hasTotal = totalRawVal !== undefined && !isNaN(totalRawVal) && totalRawVal !== null && this.store.categoryId !== 'total';
               
               // i=0,1,2,3 は横(右)に並べる
               if (hasTotal && node.index !== 4) {
