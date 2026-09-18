@@ -254,14 +254,14 @@
 
         // --- 2.5 全店計（背景比較用）ポリゴン ---
         try {
-          if (this.config && this.config.totalStoreData && this.config.totalStoreData.metrics && this.store && this.store.categoryId !== 'total') {
+          if (this.config && window.RadarAppTotalStoreData && window.RadarAppTotalStoreData.metrics && this.store && this.store.categoryId !== 'total') {
             const totalGroup = document.createElementNS(SVG_NS, 'g');
             totalGroup.setAttribute('class', 'chart-total-data');
             const totalPoints = [];
             this.metrics.forEach((metric, i) => {
               const angle = i * angleStep;
-              let rawVal = this.config.totalStoreData.metrics[metric.key];
-              if (rawVal === undefined) rawVal = this.config.totalStoreData.metrics[metric.id];
+              let rawVal = window.RadarAppTotalStoreData.metrics[metric.key];
+              if (rawVal === undefined) rawVal = window.RadarAppTotalStoreData.metrics[metric.id];
               if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
               const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
               const r = this.valueToRadius(clampedVal);
