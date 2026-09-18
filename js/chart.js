@@ -278,7 +278,7 @@
             totalPoly.setAttribute('points', totalPoints.join(' '));
             totalPoly.setAttribute('fill', 'none');
             totalPoly.setAttribute('stroke', totalTheme.chartColor.stroke || '#fbcfe8');
-            totalPoly.setAttribute('stroke-width', '2.0');
+            totalPoly.setAttribute('stroke-width', '0.8');
             // 実線に変更するため dasharray を削除
             // totalPoly.setAttribute('stroke-dasharray', '4, 4');
             totalPoly.setAttribute('stroke-opacity', '1.0');
