@@ -131,10 +131,10 @@
       let storeCode = sanitizeCell(row[0] || '').replace(/^'/, '');
       let rawStoreName = sanitizeCell(row[1] || '');
 
-      // 合計行や空行はスキップ
-      if (!rawStoreName || (rawStoreName.includes('計') && !rawStoreName.includes('全店') && !rawStoreName.includes('合計')) || rawStoreName.includes('店コード/店名')) {
-        continue;
-      }
+              // 空行またはヘッダー行のみスキップ。「計」の行はすべて取り込む
+        if (!rawStoreName || rawStoreName.includes('店コード/店名')) {
+          continue;
+        }
 
       const storeRecord = {
         code: storeCode,
