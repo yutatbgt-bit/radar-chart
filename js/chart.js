@@ -283,38 +283,66 @@
                                     const sinA = Math.sin(angle);
                   const cosA = Math.cos(angle);
                   
-                                      // インデックス(i)に基づいて、ユーザー指定の方向に配置
-                    // 0:売上高(右), 1:客数(右), 2:打数(下), 3:客単価(下), 4:一品単価(上)
+                                                          // インデックス(i)に基づいて、自店舗ラベルの座標を正確に計算し、そのすぐ横に配置
                     const isLargeModal = this.size >= 400;
                     
-                    // ベースとして店舗ラベルの外側に配置するための距離
-                    const baseR = r + (isLargeModal ? 22 : 16);
-                    let textX = this.cx + baseR * Math.sin(angle);
-                    let textY = this.cy - baseR * Math.cos(angle);
+                    // --- 自店舗のラベル座標（baseTextX, baseTextY）を計算 ---
+                    let storeRawVal = this.store.metrics[metric.key];
+                    if (storeRawVal === undefined) storeRawVal = this.store.metrics[metric.id];
+                    if (storeRawVal === undefined || isNaN(storeRawVal) || storeRawVal === null) storeRawVal = 0;
+                    const storeClampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, storeRawVal));
+                    const storeR = this.valueToRadius(storeClampedVal);
+                    const storeNode = polarToCartesian(this.cx, this.cy, storeR, angle);
+                    
+                    const distBase = isLargeModal ? 16 : 11;
+                    const isUpperSide = cosA > 0.05 && Math.abs(sinA) > 0.35;
+                    
+                    let baseTextX = storeNode.x + distBase * sinA;
+                    let baseTextY = storeNode.y - distBase * cosA;
+                    
+                    if (Math.abs(sinA) < 0.1) {
+                      if (cosA < 0) baseTextY += 8;
+                    } else if (sinA > 0) {
+                      baseTextX += 2;
+                      if (isUpperSide) baseTextY -= 4; 
+                    } else {
+                      baseTextX -= 2;
+                      if (isUpperSide) baseTextY -= 4;
+                    }
+                    // ---------------------------------------------------------
+                    
+                    let textX = baseTextX;
+                    let textY = baseTextY;
                     let anchor = 'middle';
                     
                     if (i === 0) {
                       // 売上高 -> 右側
-                      textX += (isLargeModal ? 20 : 15);
+                      textX += (isLargeModal ? 34 : 28);
+                      textY += 1;
                       anchor = 'start';
                     } else if (i === 1) {
                       // 客数 -> 右側
-                      textX += (isLargeModal ? 15 : 10);
+                      textX += (isLargeModal ? 36 : 30);
+                      textY += 1;
                       anchor = 'start';
                     } else if (i === 2) {
                       // 打数 -> 下側
-                      textY += (isLargeModal ? 12 : 10);
+                      textY += (isLargeModal ? 13 : 10);
+                      anchor = 'start';
                     } else if (i === 3) {
                       // 客単価 -> 下側
-                      textY += (isLargeModal ? 12 : 10);
+                      textY += (isLargeModal ? 13 : 10);
+                      anchor = 'end';
                     } else if (i === 4) {
                       // 一品単価 -> 上側
-                      textY -= (isLargeModal ? 12 : 10);
+                      textY -= (isLargeModal ? 13 : 10);
+                      anchor = 'end';
                     }
                     
                     valText.setAttribute('text-anchor', anchor);
                     valText.setAttribute('x', textX);
                     valText.setAttribute('y', textY);
+                    valText.textContent = `(${rawVal.toFixed(1)}%)`; // 比較用と分かりやすいよう括弧をつける
                   
                   totalGroup.appendChild(valText);
                 }
