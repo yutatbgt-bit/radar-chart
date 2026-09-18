@@ -272,15 +272,16 @@
             const totalFillPoly = document.createElementNS(SVG_NS, 'polygon');
             totalFillPoly.setAttribute('points', totalPoints.join(' '));
             totalFillPoly.setAttribute('fill', totalTheme.chartColor.fillStart || 'rgba(251,207,232,0.3)');
-            totalFillPoly.setAttribute('opacity', '0.2');
+            totalFillPoly.setAttribute('opacity', '0.45');
             totalGroup.appendChild(totalFillPoly);
             const totalPoly = document.createElementNS(SVG_NS, 'polygon');
             totalPoly.setAttribute('points', totalPoints.join(' '));
             totalPoly.setAttribute('fill', 'none');
             totalPoly.setAttribute('stroke', totalTheme.chartColor.stroke || '#fbcfe8');
-            totalPoly.setAttribute('stroke-width', '1.5');
-            totalPoly.setAttribute('stroke-dasharray', '4, 4');
-            totalPoly.setAttribute('stroke-opacity', '0.8');
+            totalPoly.setAttribute('stroke-width', '2.0');
+            // 実線に変更するため dasharray を削除
+            // totalPoly.setAttribute('stroke-dasharray', '4, 4');
+            totalPoly.setAttribute('stroke-opacity', '1.0');
             totalGroup.appendChild(totalPoly);
             svg.appendChild(totalGroup);
           }

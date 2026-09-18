@@ -110,10 +110,10 @@ window.RadarAppConfig = deepFreeze({
     badgeBg: "rgba(249, 168, 212, 0.15)",
     badgeBorder: "rgba(249, 168, 212, 0.3)",
     chartColor: {
-      stroke: "#f9a8d4",
-      fillStart: "rgba(249, 168, 212, 0.4)",
-      fillEnd: "rgba(249, 168, 212, 0.08)",
-      nodeColor: "#fff1f2",
+      stroke: "#f472b6",
+      fillStart: "rgba(244, 114, 182, 0.5)",
+      fillEnd: "rgba(244, 114, 182, 0.15)",
+      nodeColor: "#fbcfe8",
       nodeGlow: "rgba(249, 168, 212, 0.45)"
     }
   },
