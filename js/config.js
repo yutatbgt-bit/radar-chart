@@ -106,15 +106,15 @@ window.RadarAppConfig = deepFreeze({
   totalStoreTheme: {
     id: "total",
     name: "全店計",
-    badgeColor: "#f1f5f9",
-    badgeBg: "rgba(241, 245, 249, 0.16)",
-    badgeBorder: "rgba(241, 245, 249, 0.4)",
+    badgeColor: "#fbcfe8",
+    badgeBg: "rgba(244, 114, 182, 0.16)",
+    badgeBorder: "rgba(244, 114, 182, 0.4)",
     chartColor: {
-      stroke: "#e2e8f0",
-      fillStart: "rgba(241, 245, 249, 0.52)",
-      fillEnd: "rgba(241, 245, 249, 0.12)",
-      nodeColor: "#f8fafc",
-      nodeGlow: "rgba(241, 245, 249, 0.55)"
+      stroke: "#f472b6",
+      fillStart: "rgba(244, 114, 182, 0.52)",
+      fillEnd: "rgba(244, 114, 182, 0.12)",
+      nodeColor: "#fdf2f8",
+      nodeGlow: "rgba(244, 114, 182, 0.55)"
     }
   },
 
