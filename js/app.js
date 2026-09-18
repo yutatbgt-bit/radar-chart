@@ -290,6 +290,86 @@
   }
 
   const THEME_STORAGE_KEY = 'radar_chart_theme';
+
+  // ==========================================================================
+  // ハイブリッド・ストレージマネージャー (IndexedDB + localStorage フォールバック)
+  // ==========================================================================
+  const RadarStorage = (function() {
+    const DB_NAME = 'RadarChartAppDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'radar_store';
+
+    function openDB() {
+      return new Promise(function(resolve, reject) {
+        if (!window.indexedDB) {
+          return reject(new Error('IndexedDB not supported'));
+        }
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = function(e) {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        req.onsuccess = function(e) { resolve(e.target.result); };
+        req.onerror = function(e) { reject(e.target.error); };
+      });
+    }
+
+    return {
+      get: function(key) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(key);
+            req.onsuccess = function() { resolve(req.result); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            const raw = localStorage.getItem('rc_' + key);
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        });
+      },
+      set: function(key, val) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put(val, key);
+            req.onsuccess = function() { resolve(); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            localStorage.setItem('rc_' + key, JSON.stringify(val));
+          } catch (e) {
+            console.warn('[RadarStorage] localStorage set failed:', e);
+          }
+        });
+      },
+      clearAll: function() {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.clear();
+            req.onsuccess = function() { resolve(); };
+            req.onerror = function() { reject(req.error); };
+          });
+        }).catch(function() {
+          try {
+            localStorage.removeItem('rc_csv_state');
+          } catch (e) {}
+        });
+      }
+    };
+  })();
+
   const VALID_THEMES = Object.freeze(['dark', 'light']);
 
   /**
@@ -453,6 +533,21 @@
   /**
    * 初期化処理
    */
+
+  /**
+   * 起動時に保存済みCSVデータを復元
+   */
+  function restorePersistedData() {
+    RadarStorage.get('csv_state').then(function(state) {
+      if (!state || !state.csvText) return;
+      currentCsvFileName = state.fileName || '';
+      loadAndProcessCsv(state.csvText);
+      showToast(`前回保存されたデータ（${currentCsvFileName}）を自動復元しました。`, 'info');
+    }).catch(function(err) {
+      console.warn('[restorePersistedData] error:', err);
+    });
+  }
+
   function init() {
     // 初期状態は店舗構成・項目を維持したクリア状態（数値未設定）で画面描画
     clearAllStoreData(true);
@@ -467,6 +562,7 @@
         const reader = new FileReader();
         reader.onload = (event) => {
           const content = event.target.result;
+          currentCsvFileName = file.name || '';
           showToast(`「${file.name}」を読み込み中...`, 'info');
           loadAndProcessCsv(content);
         };
@@ -510,6 +606,9 @@
         }
       });
     }
+
+    // 起動時に保存済みデータを復元
+    restorePersistedData();
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -584,6 +683,7 @@
         const reader = new FileReader();
         reader.onload = (event) => {
           const content = event.target.result;
+          currentCsvFileName = fileName || '';
           showToast(`「${fileName}」を読み込み中...`, 'info');
           loadAndProcessCsv(content);
         };
