@@ -238,7 +238,7 @@
    * 全店計専用のデータ構造を構築する
    * CSV内に「全店計」「合計」「全店」があれば抽出し、なければ全店舗平均から算出する
    */
-    function buildTotalStoreData(storeMap, config) {
+    function buildTotalStoreData(storeMap, config, matrix) {
     const metrics = config.metrics || [];
     // CSV上での「全店計」に該当しそうな名前の候補
     const aliases = ["全店計", "全店", "合計", "総合計", "総計", "全体", "計"];
@@ -251,7 +251,7 @@
         break;
       }
     }
-    // 見つからなければ部分一致検索（最初に見つかった「計」を優先する）
+    // 見つからなければ部分一致検索
     if (!matchedRecord) {
       for (const [csvName, record] of storeMap.entries()) {
         if (aliases.some(a => csvName.includes(a))) {
@@ -261,11 +261,29 @@
       }
     }
 
+    // それでも見つからなければ、強制的に8行目（インデックス7）を全店計として抽出する
+    if (!matchedRecord && matrix && matrix.length > 7) {
+      const row = matrix[7];
+      if (row && row.length >= 5) {
+        matchedRecord = {
+          code: sanitizeCell(row[0] || '').replace(/^'/, ''),
+          rawName: sanitizeCell(row[1] || '全店計(強制抽出)'),
+          metrics: {},
+          rawRow: row
+        };
+        metrics.forEach((m) => {
+          const colIdx = m.colIndex;
+          const rawCell = (colIdx !== undefined && colIdx < row.length) ? row[colIdx] : '';
+          matchedRecord.metrics[m.key] = parsePercentageOrNumber(rawCell);
+          matchedRecord.metrics[m.id] = parsePercentageOrNumber(rawCell);
+        });
+      }
+    }
+
     let resultMetrics = {};
     if (matchedRecord) {
       resultMetrics = matchedRecord.metrics;
     } else {
-      // 見つからなかった場合は全て0にする（自動平均計算は行わない）
       metrics.forEach(m => {
         resultMetrics[m.key] = 0;
         resultMetrics[m.id] = 0;

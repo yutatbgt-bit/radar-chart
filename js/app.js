@@ -55,11 +55,7 @@
     // クラスを他のカードと同じにしてCSSを合わせる
     card.className = 'store-kanban-card';
     card.setAttribute('data-store', totalStoreData.storeName);
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.addEventListener('click', () => {
-      openStoreModal(totalStoreData, theme);
-    });
+    card.setAttribute('role', 'region'); // buttonからregionへ変更
 
     const cardHeader = document.createElement('div');
     cardHeader.className = 'card-header';
@@ -73,11 +69,19 @@
     cardHeader.appendChild(storeNameEl);
     card.appendChild(cardHeader);
 
+    // 1. チャート領域
     const chartArea = document.createElement('div');
     chartArea.className = 'card-chart-area';
     card.appendChild(chartArea);
 
     new window.StoreRadarChart(chartArea, totalStoreData, config, theme);
+
+    // 2. データ表（テーブル）領域を常時表示する
+    const tableArea = document.createElement('div');
+    tableArea.className = 'card-table-area';
+    card.appendChild(tableArea);
+
+    new window.StoreMetricsTable(tableArea, totalStoreData, config);
 
     section.appendChild(card);
   }
@@ -575,7 +579,7 @@
       const matrix = window.SafeCsvParser.parse(csvText);
       const storeMap = window.SafeCsvParser.extractStores(matrix, config);
       const kanbanCategories = window.SafeCsvParser.buildKanban(storeMap, config);
-      const totalStoreData = window.SafeCsvParser.buildTotalStore(storeMap, config);
+      const totalStoreData = window.SafeCsvParser.buildTotalStore(storeMap, config, matrix);
 
       renderTotalStoreSection(totalStoreData);
       renderKanbanBoard(kanbanCategories);
