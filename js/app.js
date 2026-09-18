@@ -52,37 +52,58 @@
     if (!theme || !totalStoreData) return;
 
     const card = document.createElement('article');
-    // クラスを他のカードと同じにしてCSSを合わせる
-    card.className = 'store-kanban-card';
+    // ベースクラスに追加して特別スタイルを適用
+    card.className = 'store-kanban-card total-store-card';
     card.setAttribute('data-store', totalStoreData.storeName);
-    card.setAttribute('role', 'region'); // buttonからregionへ変更
+    card.setAttribute('role', 'region');
+    // 幅を広く取れるようにスタイルを上書き
+    card.style.maxWidth = '800px'; 
+    card.style.width = '100%';
 
     const cardHeader = document.createElement('div');
     cardHeader.className = 'card-header';
     cardHeader.style.justifyContent = 'center';
+    cardHeader.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+    cardHeader.style.paddingBottom = '0.5rem';
+    cardHeader.style.marginBottom = '1rem';
 
     const storeNameEl = document.createElement('h2');
     storeNameEl.className = 'card-store-name';
-    storeNameEl.style.fontSize = '1.25rem';
+    storeNameEl.style.fontSize = '1.5rem';
     storeNameEl.textContent = totalStoreData.storeName;
 
     cardHeader.appendChild(storeNameEl);
     card.appendChild(cardHeader);
 
-    // 1. チャート領域
+    // チャートと表を横並びにするためのラッパー
+    const contentWrapper = document.createElement('div');
+    contentWrapper.style.display = 'flex';
+    contentWrapper.style.flexDirection = 'row';
+    contentWrapper.style.justifyContent = 'center';
+    contentWrapper.style.alignItems = 'center';
+    contentWrapper.style.flexWrap = 'wrap';
+    contentWrapper.style.gap = '2rem';
+    contentWrapper.style.width = '100%';
+
+    // 1. チャート領域（左側）
     const chartArea = document.createElement('div');
     chartArea.className = 'card-chart-area';
-    card.appendChild(chartArea);
+    chartArea.style.flex = '1';
+    chartArea.style.minWidth = '300px';
+    contentWrapper.appendChild(chartArea);
 
     new window.StoreRadarChart(chartArea, totalStoreData, config, theme);
 
-    // 2. データ表（テーブル）領域を常時表示する
+    // 2. データ表（テーブル）領域（右側）
     const tableArea = document.createElement('div');
     tableArea.className = 'card-table-area';
-    card.appendChild(tableArea);
+    tableArea.style.flex = '1';
+    tableArea.style.minWidth = '250px';
+    contentWrapper.appendChild(tableArea);
 
     new window.StoreMetricsTable(tableArea, totalStoreData, config);
 
+    card.appendChild(contentWrapper);
     section.appendChild(card);
   }
 
