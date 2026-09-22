@@ -1,4 +1,4 @@
-/**
+﻿/**
  * アプリケーション コアロジック (app.js)
  * 
  * 全24店舗・4列カンバンビューの統合制御。
@@ -337,6 +337,7 @@
           storeName: s.name,
           csvName: s.name,
           code: '',
+          dailySales: null,
           metrics: emptyMetrics,
           categoryId: cat.id,
           categoryName: cat.name,
@@ -355,8 +356,30 @@
       };
     });
 
-    renderKanbanBoard(clearedCategories);
+    
+      const emptyTotalMetrics = {};
+      (config.metrics || []).forEach((m) => {
+        emptyTotalMetrics[m.key] = null;
+        emptyTotalMetrics[m.id] = null;
+      });
+      const clearedTotalStore = {
+        storeName: "全店計",
+        csvName: "全店計",
+        code: "",
+        metrics: emptyTotalMetrics,
+        categoryId: "total",
+        categoryName: "全店計",
+        isCleared: true
+      };
+      window.RadarAppTotalStoreData = clearedTotalStore;
+      renderTotalStoreSection(clearedTotalStore);
+
+      renderKanbanBoard(clearedCategories);
     if (!silent) {
+        if (typeof RadarStorage !== 'undefined' && RadarStorage.clearAll) {
+          try { localStorage.removeItem('rc_csv_state'); } catch(e) {}
+          RadarStorage.clearAll().catch(function(e) { console.warn(e); });
+        }
       showToast('全店舗の数値をクリアしました（店舗構成・評価項目は維持されています）', 'info');
     }
   }

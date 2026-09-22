@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Luxury Dark Style Pure SVG レーダーチャート描画エンジン (chart.js)
  * 
  * 外部ライブラリ不使用、innerHTML不使用、DOM/SVG APIのみで構築。
@@ -68,7 +68,48 @@
      * - 0% 〜 90%: 半径の 0% 〜 40%（中心から40%位置を90%に設定）
      * - 90% 〜 100%: 半径の 40% 〜 100%（外側60%の広大な領域に展開し、変化を6倍拡大）
      */
-    valueToRadius(value) {
+        /**
+     * 店舗ごとのロス率予算（目標値）を取得
+     */
+    getLossRatioBudget(isTotalStore = false) {
+      const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
+      if (isTotalStore) {
+        return budgets['全店計'] !== undefined ? budgets['全店計'] : 4.00;
+      }
+      const storeName = (this.store && this.store.storeName) || '';
+      const csvName = (this.store && this.store.csvName) || '';
+      if (budgets[storeName] !== undefined) return budgets[storeName];
+      if (budgets[csvName] !== undefined) return budgets[csvName];
+      return budgets['default'] !== undefined ? budgets['default'] : 4.00;
+    }
+
+    /**
+     * ロス率の実績値をチャートスケール（0〜100）に変換
+     * ロス率 <= 予算のとき -> 100（一番外側）
+     * 予算 < ロス率 <= 5%のとき -> 100〜95
+     * 5% < ロス率 <= 10%のとき -> 95〜0
+     */
+    scaleLossRatio(rawVal, budgetVal) {
+      // 1. 実績が予算以下の場合: 100（一番外側）
+      if (rawVal <= budgetVal) {
+        return 100;
+      }
+
+      // 各店舗のロス率予算 + 1.00% を既存の 95% 目盛位置とする
+      const midPointVal = budgetVal + 1.00;
+
+      // 2. 予算から (予算 + 1.00%) の間: 100〜95
+      if (rawVal <= midPointVal) {
+        return 100 - ((rawVal - budgetVal) / 1.00) * 5.0;
+      } else {
+        // 3. (予算 + 1.00%) から 10.0% の間: 95〜0（中心位置）
+        const maxVal = Math.max(10.0, midPointVal + 2.00);
+        if (rawVal >= maxVal) return 0;
+        return 95 - ((rawVal - midPointVal) / (maxVal - midPointVal)) * 95.0;
+      }
+    }
+
+valueToRadius(value) {
       // 異常値（NaN, null, undefined, 文字列）に対するゼロ安全フォールバック
       const safeVal = (typeof value === 'number' && Number.isFinite(value)) ? value : 0;
       const clamped = Math.max(this.scaleMin, Math.min(this.scaleMax, safeVal));
@@ -265,7 +306,12 @@
                 if (rawVal === undefined) rawVal = window.RadarAppTotalStoreData.metrics[metric.id];
                 if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
                 
-                const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
+                let scaledVal = rawVal;
+            if (metric.id === "lossRatio" || metric.key === "lossRatio") {
+              const totalBudget = this.getLossRatioBudget(true);
+              scaledVal = this.scaleLossRatio(rawVal, totalBudget);
+            }
+            const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, scaledVal));
                 const r = this.valueToRadius(clampedVal);
                 const pos = polarToCartesian(this.cx, this.cy, r, angle);
                 totalPoints.push(pos.x.toFixed(1) + "," + pos.y.toFixed(1));
@@ -306,7 +352,13 @@
             : (this.store.metrics[metric.id] || 0);
 
           // 端の値（100%）を上限としてクランプ
-          const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, rawVal));
+          let scaledVal = rawVal;
+            if (metric.id === "lossRatio" || metric.key === "lossRatio") {
+              const isTotal = (this.store && this.store.categoryId === 'total');
+              const storeBudget = this.getLossRatioBudget(isTotal);
+              scaledVal = this.scaleLossRatio(rawVal, storeBudget);
+            }
+            const clampedVal = Math.min(this.scaleMax, Math.max(this.scaleMin, scaledVal));
           const r = this.valueToRadius(clampedVal);
           const pos = polarToCartesian(this.cx, this.cy, r, angle);
 
@@ -470,6 +522,11 @@
 
           labelX = pos.x;
           labelY = pos.y;
+
+          // 一品単価 (unitPriceRatio) が上の数値表示と被らないよう少し下にシフト
+          if (metric.id === 'unitPriceRatio' || metric.key === 'unitPriceRatio') {
+            labelY += (isLarge ? 14 : 10);
+          }
 
           if (sinA > 0.25) {
             labelAnchor = 'start';

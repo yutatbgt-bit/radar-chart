@@ -136,9 +136,17 @@
           continue;
         }
 
+      const dailySalesCol = (config.dataMapping && config.dataMapping.dailySalesColIndex !== undefined)
+        ? config.dataMapping.dailySalesColIndex
+        : 2;
+      const rawDailySales = (dailySalesCol < row.length) ? row[dailySalesCol] : '';
+      const parsedDailySales = parsePercentageOrNumber(rawDailySales);
+
       const storeRecord = {
         code: storeCode,
         rawName: rawStoreName,
+        dailySales: parsedDailySales,
+        rawDailySales: rawDailySales,
         metrics: {},
         rawRow: row
       };
@@ -199,6 +207,7 @@
             storeName: displayName,
             csvName: matchedRecord.rawName,
             code: matchedRecord.code,
+            dailySales: matchedRecord.dailySales !== undefined ? matchedRecord.dailySales : null,
             metrics: matchedRecord.metrics,
             categoryId: category.id,
             categoryName: category.name
@@ -214,6 +223,7 @@
             storeName: displayName,
             csvName: displayName,
             code: '',
+            dailySales: null,
             metrics: fallbackMetrics,
             categoryId: category.id,
             categoryName: category.name,

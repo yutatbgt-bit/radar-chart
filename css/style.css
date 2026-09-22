@@ -1057,6 +1057,32 @@ main {
   white-space: nowrap;
 }
 
+
+/* 左端（店舗名列）の固定（スティッキー）設定 */
+.column-summary-table th.th-col-store,
+.column-summary-table .td-col-store-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #0f172a; /* 背景透過による文字重なりを防止 */
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
+  min-width: 82px;
+  max-width: 100px;
+}
+
+.column-summary-table th.th-col-store {
+  z-index: 3;
+  background: #131d35;
+}
+
+.column-summary-table tfoot .td-col-store-name {
+  background: #131d35;
+}
+
+.column-summary-table tbody tr:hover .td-col-store-name {
+  background: #17233f;
+}
 .column-summary-table .td-col-store-name {
   font-weight: 600;
 }
@@ -1088,15 +1114,19 @@ main {
 
 /* 達成度別の色分け */
 .column-summary-table .val-achieved {
-  color: #34d399; /* 100%以上: ミント */
+  color: #a7f3d0; /* 100%超え: より淡くミルキーなペールミントグリーン */
 }
 
 .column-summary-table .val-normal {
-  color: #cbd5e1; /* 90%〜100%: 明るいスレート */
+  color: #cbd5e1; /* 90%〜100%: ニュートラルスレート */
+}
+
+.column-summary-table .val-sub-avg {
+  color: #fef08a !important; /* カテゴリ平均以下: 明るく淡いペールシフォンイエロー */
 }
 
 .column-summary-table .val-alert {
-  color: #fb7185; /* 90%未満: ソフトローズ */
+  color: #fca5a5; /* 90%未満 / 予算オーバー: 刺激を和らげた淡いパステルコーラルピンク */
 }
 
 .column-summary-table .val-empty {
@@ -1153,15 +1183,19 @@ main {
 }
 
 [data-theme="light"] .column-summary-table .val-achieved {
-  color: #059669;
+  color: #14b8a6; /* 穏やかで淡めのソフトティール */
 }
 
 [data-theme="light"] .column-summary-table .val-normal {
-  color: #334155;
+  color: #475569;
+}
+
+[data-theme="light"] .column-summary-table .val-sub-avg {
+  color: #d97706 !important; /* ギラつきのないマイルドウォームイエロー */
 }
 
 [data-theme="light"] .column-summary-table .val-alert {
-  color: #e11d48;
+  color: #e11d48; /* 優しめのソフトローズ */
 }
 
 [data-theme="light"] .column-summary-table tfoot tr {
@@ -1173,11 +1207,66 @@ main {
   color: #0f172a;
 }
 
+
+[data-theme="light"] .column-summary-table th.th-col-store,
+[data-theme="light"] .column-summary-table .td-col-store-name {
+  background: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .column-summary-table th.th-col-store {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .column-summary-table tfoot .td-col-store-name {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .column-summary-table tbody tr:hover .td-col-store-name {
+  background: #f1f5f9;
+}
 [data-theme="light"] .column-summary-table tbody tr:hover {
   background: rgba(0, 0, 0, 0.03);
 }
 
 /* 客数比に対して売上比が低い店舗のマーキング（店舗名のみ適用） */
+
+/* 売上高100%超え店舗のマーキング（グリーン） */
+.btn-summary-store-link.store-leading-mark {
+  background: rgba(52, 211, 153, 0.16);
+  color: #6ee7b7 !important;
+  border: 1px solid rgba(52, 211, 153, 0.40);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-summary-store-link.store-leading-mark:hover {
+  background: rgba(52, 211, 153, 0.30);
+  color: #ffffff !important;
+  border-color: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.35);
+}
+
+[data-theme="light"] .btn-summary-store-link.store-leading-mark {
+  background: rgba(16, 185, 129, 0.10);
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+[data-theme="light"] .btn-summary-store-link.store-leading-mark:hover {
+  background: rgba(16, 185, 129, 0.20);
+  color: #047857 !important;
+  border-color: #059669;
+}
+
+/* 店舗計（平均値）以下の場合のイエロー表示 */
+
 .btn-summary-store-link.store-lagging-mark {
   background: rgba(244, 63, 94, 0.16);
   color: #fb7185 !important;

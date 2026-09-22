@@ -1,4 +1,4 @@
-/**
+﻿/**
  * レーダーチャート＆データ分析アプリケーション 設定ファイル (config.js)
  * 
  * ラグジュアリー・ダークテーマ対応。
@@ -29,12 +29,14 @@ window.RadarAppConfig = deepFreeze({
     headerRowIndex: 6,
     storeCodeColIndex: 0,
     storeNameColIndex: 1,
+    dailySalesColIndex: 2,
     metricColIndexes: {
       salesRatio: 5,       // 売上高 比較日比
       customerRatio: 11,   // 客数 比較日比
       itemHitRatio: 8,     // 打数 比較日比
       spendingRatio: 13,   // 客単価 比較日比
-      unitPriceRatio: 15   // 一品単価 比較日比
+      unitPriceRatio: 15,
+      lossRatio: 20   // 一品単価 比較日比
     }
   },
 
@@ -99,6 +101,18 @@ window.RadarAppConfig = deepFreeze({
       benchmark: 100.0,
       unit: "%",
       description: "前年同曜日比の一品単価比"
+        },
+    {
+      id: "lossRatio",
+      key: "ロス率",
+      label: "ロス率",
+      shortLabel: "ロス",
+      colIndex: 20,
+      min: 0,
+      max: 10,
+      benchmark: 5.0,
+      unit: "%",
+      description: "商品ロス率"
     }
   ],
 
@@ -118,8 +132,40 @@ window.RadarAppConfig = deepFreeze({
     }
   },
 
+  // 各店舗ごとのロス率予算（目標値 %）
+  lossRatioBudgets: {
+    "全店計": 4.00,
+    "王子店": 3.41,
+    "塚口店": 3.64,
+    "夙川店": 3.33,
+    "芦屋店": 3.14,
+    "門戸店": 3.97,
+    "箕面店": 3.37,
+    "岡本店": 4.56,
+    "有野店": 5.20,
+    "六甲店": 5.65,
+    "御影店": 4.67,
+    "甲子園店": 4.43,
+    "宝塚店": 4.61,
+    "甲陽園店": 5.61,
+    "摂津本山店": 5.03,
+    "逆瀬川店": 5.36,
+    "高槻店": 5.16,
+    "JR大阪店": 3.20,
+    "大阪店": 3.20,
+    "三宮店": 4.36,
+    "南海なんば店": 3.72,
+    "なんば店": 3.72,
+    "淀屋橋店": 4.32,
+    "淀屋橋ステーションワン店": 4.32,
+    "伊丹店": 4.62,
+    "豊中店": 3.83,
+    "豊中緑丘店": 5.46,
+    "常盤店": 4.43,
+    "default": 4.00
+  },
+
   // 4列カンバンビューのカテゴリ＆店舗並び順 (全24店舗)
-  // 明るく上品なマイルドカラーパレット（非ビビッド・柔らかなミルキートーン）
   categories: [
     
     {
