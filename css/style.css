@@ -135,6 +135,43 @@ body {
   gap: 14px;
   flex-wrap: wrap;
 }
+/* アップロードコントロールグループ（ボタン＋下部ファイル名表示） */
+.header-upload-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.loaded-file-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  font-size: 0.6875rem;
+  color: #38bdf8;
+  transition: all 0.2s ease;
+}
+
+.loaded-file-icon {
+  flex-shrink: 0;
+  margin-right: 6px;
+  stroke: #38bdf8;
+}
+
+.loaded-file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
 
 /* 読み込みボタン周辺 ドロップ＆選択ゾーン (Header Drop Zone) */
 .header-drop-zone {
@@ -900,6 +937,16 @@ main {
   background: linear-gradient(135deg, #0f172a 30%, #334155 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .loaded-file-display {
+  background: rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: #0284c7;
+}
+
+[data-theme="light"] .loaded-file-icon {
+  stroke: #0284c7;
 }
 
 [data-theme="light"] .drop-zone-main-text {

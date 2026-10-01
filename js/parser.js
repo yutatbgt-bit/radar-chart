@@ -275,9 +275,12 @@
     if (!matchedRecord && matrix && matrix.length > 7) {
       const row = matrix[7];
       if (row && row.length >= 5) {
+        const dailySalesCol = (config && config.dataMapping && config.dataMapping.dailySalesColIndex !== undefined) ? config.dataMapping.dailySalesColIndex : 2;
+        const rawDailySales = (dailySalesCol < row.length) ? row[dailySalesCol] : '';
         matchedRecord = {
           code: sanitizeCell(row[0] || '').replace(/^'/, ''),
           rawName: sanitizeCell(row[1] || '全店計(強制抽出)'),
+          dailySales: parsePercentageOrNumber(rawDailySales),
           metrics: {},
           rawRow: row
         };
@@ -304,6 +307,7 @@
       storeName: "全店計",
       csvName: matchedRecord ? matchedRecord.rawName : "未検出",
       code: matchedRecord ? matchedRecord.code : "",
+      dailySales: matchedRecord && matchedRecord.dailySales !== undefined ? matchedRecord.dailySales : null,
       metrics: resultMetrics,
       categoryId: "total",
       categoryName: "全店計"

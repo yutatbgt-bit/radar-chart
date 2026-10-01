@@ -1,4 +1,4 @@
-﻿/**
+/**
  * レーダーチャート＆データ分析アプリケーション 設定ファイル (config.js)
  * 
  * ラグジュアリー・ダークテーマ対応。
@@ -204,7 +204,6 @@ window.RadarAppConfig = deepFreeze({
       },
       stores: [
         { name: "門戸店", alias: ["門戸店"] },
-        { name: "岡本店", alias: ["岡本店"] },
         { name: "甲子園店", alias: ["甲子園店"] },
         { name: "豊中店", alias: ["豊中店"] },
         { name: "常盤店", alias: ["常盤店"] },
@@ -226,12 +225,13 @@ window.RadarAppConfig = deepFreeze({
         nodeGlow: "rgba(253, 224, 71, 0.45)"
       },
       stores: [
-        { name: "豊中緑丘店", alias: ["豊中緑丘店"] },
+        { name: "岡本店", alias: ["岡本店"] },
         { name: "御影店", alias: ["御影店"] },
         { name: "宝塚店", alias: ["宝塚店"] },
         { name: "高槻店", alias: ["高槻店"] },
         { name: "逆瀬川店", alias: ["逆瀬川店"] },
-        { name: "有野店", alias: ["有野店"] }
+        { name: "有野店", alias: ["有野店"] },
+        { name: "豊中緑丘店", alias: ["豊中緑丘店"] }
       ]
     },
     {

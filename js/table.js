@@ -235,6 +235,11 @@
       thDailySales.textContent = '日商';
       headerRow.appendChild(thDailySales);
 
+      const thSalesRatio = document.createElement('th');
+      thSalesRatio.className = 'th-col-metric th-col-sales-comp-ratio';
+      thSalesRatio.textContent = '構成比';
+      headerRow.appendChild(thSalesRatio);
+
       this.metrics.forEach((metric) => {
         const th = document.createElement('th');
         th.className = 'th-col-metric';
@@ -301,6 +306,17 @@
           tdDailySales.classList.add('val-empty');
         }
         tr.appendChild(tdDailySales);
+
+        // 構成比セル
+        const tdSalesRatio = document.createElement('td');
+        tdSalesRatio.className = 'td-col-val td-col-sales-comp-ratio';
+        if (store.salesCompRatioStr) {
+          tdSalesRatio.textContent = store.salesCompRatioStr;
+        } else {
+          tdSalesRatio.textContent = '-';
+          tdSalesRatio.classList.add('val-empty');
+        }
+        tr.appendChild(tdSalesRatio);
 
         // 各指標値セル
         this.metrics.forEach((metric) => {
@@ -373,6 +389,25 @@
         tdAvgDailySales.classList.add('val-empty');
       }
       trAvg.appendChild(tdAvgDailySales);
+
+      // 構成比セル (カテゴリ計)
+      const tdAvgSalesRatio = document.createElement('td');
+      tdAvgSalesRatio.className = 'td-col-val td-avg-val td-col-sales-comp-ratio';
+      let catRatioSum = 0;
+      let hasRatioData = false;
+      this.stores.forEach(store => {
+        if (store.salesCompRatioNum !== undefined) {
+           catRatioSum += store.salesCompRatioNum;
+           hasRatioData = true;
+        }
+      });
+      if (hasRatioData) {
+        tdAvgSalesRatio.textContent = `${catRatioSum.toFixed(1)}%`;
+      } else {
+        tdAvgSalesRatio.textContent = '-';
+        tdAvgSalesRatio.classList.add('val-empty');
+      }
+      trAvg.appendChild(tdAvgSalesRatio);
 
       this.metrics.forEach((metric) => {
         const tdAvg = document.createElement('td');

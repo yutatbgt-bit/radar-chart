@@ -1,4 +1,4 @@
-﻿/**
+/**
  * アプリケーション コアロジック (app.js)
  * 
  * 全24店舗・4列カンバンビューの統合制御。
@@ -375,6 +375,7 @@
       renderTotalStoreSection(clearedTotalStore);
 
       renderKanbanBoard(clearedCategories);
+    updateLoadedFileName('');
     if (!silent) {
         if (typeof RadarStorage !== 'undefined' && RadarStorage.clearAll) {
           try { localStorage.removeItem('rc_csv_state'); } catch(e) {}
@@ -618,6 +619,27 @@
   // CSVファイル処理・永続化・カンバン描画ロジック
   // =========================================================================
 
+  /**
+   * アップロードされたファイル名をヘッダーに安全に表示
+   * @param {string} fileName 
+   */
+  function updateLoadedFileName(fileName) {
+    const displayEl = document.getElementById('loaded-file-display');
+    const nameEl = document.getElementById('loaded-file-name');
+    if (!displayEl || !nameEl) return;
+
+    const safeName = (typeof fileName === 'string') ? fileName.trim() : '';
+    if (safeName) {
+      nameEl.textContent = safeName;
+      displayEl.title = `読み込み中ファイル: ${safeName}`;
+      displayEl.style.display = 'inline-flex';
+    } else {
+      nameEl.textContent = '';
+      displayEl.style.display = 'none';
+      displayEl.removeAttribute('title');
+    }
+  }
+
   function loadAndProcessCsv(csvText, fileName = '', isRestore = false) {
     try {
       const matrix = window.SafeCsvParser.parse(csvText);
@@ -628,8 +650,45 @@
       // 他のチャート描画時に比較データとして使えるようconfigに保持しておく
       window.RadarAppTotalStoreData = totalStoreData;
 
+      // --- 構成比合計が正確に100.0%になるよう、最大剰余方式 (Largest Remainder Method) で計算 ---
+      let allStores = [];
+      let totalSales = 0;
+      kanbanCategories.forEach(cat => {
+        cat.stores.forEach(store => {
+          if (!store.isCleared && !store.isMissing && store.dailySales !== undefined && store.dailySales !== null) {
+            allStores.push(store);
+            totalSales += store.dailySales;
+          }
+        });
+      });
+
+      if (totalSales > 0) {
+        let totalAssigned = 0;
+        allStores.forEach(store => {
+          let exactRatio = (store.dailySales / totalSales) * 1000;
+          store._floorRatio = Math.floor(exactRatio);
+          store._remainder = exactRatio - store._floorRatio;
+          totalAssigned += store._floorRatio;
+        });
+
+        let shortfall = 1000 - totalAssigned;
+        let sortedStores = [...allStores].sort((a, b) => b._remainder - a._remainder);
+        for (let i = 0; i < shortfall; i++) {
+          if (i < sortedStores.length) {
+            sortedStores[i]._floorRatio += 1;
+          }
+        }
+
+        allStores.forEach(store => {
+          store.salesCompRatioStr = (store._floorRatio / 10).toFixed(1) + '%';
+          store.salesCompRatioNum = store._floorRatio / 10;
+        });
+      }
+      // ------------------------------------------------------------------------------------------
+
       renderTotalStoreSection(totalStoreData);
       renderKanbanBoard(kanbanCategories);
+      updateLoadedFileName(fileName || currentCsvFileName || '');
 
       if (!isRestore && csvText) {
         RadarStorage.set('csv_state', {
