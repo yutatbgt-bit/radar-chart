@@ -8,6 +8,29 @@
 (function (root) {
   'use strict';
 
+  const TOTAL_STORE_BUDGET_KEY = '全店計';
+  const FALLBACK_LOSS_RATIO_BUDGET = 4.0;
+
+  /**
+   * 店舗レコードに対応するロス率予算（%）を解決する。
+   * 全店計・カテゴリ店舗計は全店計予算を基準とし、チャートのロス率目盛りと判定基準を一致させる。
+   * @param {Object} store 店舗レコード
+   * @param {Object} config アプリ設定
+   * @returns {number}
+   */
+  function resolveLossRatioBudget(store, config) {
+    const budgets = (config && config.lossRatioBudgets) || (root.RadarAppConfig && root.RadarAppConfig.lossRatioBudgets) || {};
+    const fallback = budgets['default'] !== undefined ? budgets['default'] : FALLBACK_LOSS_RATIO_BUDGET;
+    const safeStore = store || {};
+
+    if (safeStore.isCategoryTotal || safeStore.categoryId === 'total') {
+      return budgets[TOTAL_STORE_BUDGET_KEY] !== undefined ? budgets[TOTAL_STORE_BUDGET_KEY] : fallback;
+    }
+    if (safeStore.storeName && budgets[safeStore.storeName] !== undefined) return budgets[safeStore.storeName];
+    if (safeStore.csvName && budgets[safeStore.csvName] !== undefined) return budgets[safeStore.csvName];
+    return fallback;
+  }
+
   class StoreMetricsTable {
     /**
      * @param {HTMLElement} containerElement 描画先DOMコンテナ
@@ -72,9 +95,7 @@
 
         const isLoss = (metric.id === 'lossRatio' || metric.key === 'lossRatio');
         if (isLoss) {
-          const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
-          const storeName = this.store.storeName || '';
-          let storeBudget = budgets[storeName] !== undefined ? budgets[storeName] : (budgets[this.store.csvName] !== undefined ? budgets[this.store.csvName] : (budgets['default'] !== undefined ? budgets['default'] : 4.0));
+          const storeBudget = resolveLossRatioBudget(this.store, this.config);
           tdName.textContent = `${metric.label}(${storeBudget.toFixed(2)}%)`;
         } else {
           tdName.textContent = metric.label;
@@ -105,18 +126,9 @@
           tdDiff.appendChild(emptySpan);
         } else {
           const isLoss = (metric.id === 'lossRatio' || metric.key === 'lossRatio');
-          let benchmark = metric.benchmark || 100.0;
-          if (isLoss) {
-            const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
-            const storeName = this.store.storeName || '';
-            if (budgets[storeName] !== undefined) {
-              benchmark = budgets[storeName];
-            } else if (budgets[this.store.csvName] !== undefined) {
-              benchmark = budgets[this.store.csvName];
-            } else if (budgets['default'] !== undefined) {
-              benchmark = budgets['default'];
-            }
-          }
+          const benchmark = isLoss
+            ? resolveLossRatioBudget(this.store, this.config)
+            : (metric.benchmark || 100.0);
 
           const diff = Math.round((rawVal - benchmark) * 100) / 100;
 
@@ -186,39 +198,23 @@
       table.setAttribute('role', 'table');
       table.setAttribute('aria-label', `${this.category.name} 数値一覧表`);
 
-      // 1. 事前に各指標・日商の店舗計（平均値）を計算
-      const metricSums = {};
-      const metricCounts = {};
+      // 1. 事前に日商の店舗計（平均値）を計算
       let dailySalesSum = 0;
       let dailySalesCount = 0;
 
-      this.metrics.forEach(m => {
-        metricSums[m.id] = 0;
-        metricCounts[m.id] = 0;
-      });
-
       this.stores.forEach((store) => {
-        if (!store.isCleared && !store.isMissing) {
-          if (store.dailySales !== undefined && store.dailySales !== null) {
-            dailySalesSum += store.dailySales;
-            dailySalesCount++;
-          }
-          this.metrics.forEach((metric) => {
-            const rawVal = store.metrics && store.metrics[metric.key] !== undefined
-              ? store.metrics[metric.key]
-              : (store.metrics && store.metrics[metric.id] !== undefined ? store.metrics[metric.id] : null);
-            if (rawVal !== null && typeof rawVal === 'number' && !isNaN(rawVal)) {
-              metricSums[metric.id] += rawVal;
-              metricCounts[metric.id]++;
-            }
-          });
+        if (!store.isCleared && !store.isMissing && store.dailySales !== undefined && store.dailySales !== null) {
+          dailySalesSum += store.dailySales;
+          dailySalesCount++;
         }
       });
 
+      // 各指標の店舗計（平均値）は、列上部のカテゴリ店舗計チャートと同一関数で算出し数値を一致させる
+      const categoryTotal = root.SafeCsvParser.buildCategoryTotal(this.category, this.config);
       const metricAverages = {};
       this.metrics.forEach(m => {
-        const count = metricCounts[m.id] || 0;
-        metricAverages[m.id] = count > 0 ? (metricSums[m.id] / count) : null;
+        const avg = categoryTotal.metrics[m.id];
+        metricAverages[m.id] = (typeof avg === 'number' && Number.isFinite(avg)) ? avg : null;
       });
 
       // THEAD
@@ -336,9 +332,8 @@
             td.textContent = `${rawVal.toFixed(1)}%`;
             const isLoss = (metric.id === 'lossRatio' || metric.key === 'lossRatio');
             if (isLoss) {
-              const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
               const storeName = store.storeName || '';
-              let storeBudget = budgets[storeName] !== undefined ? budgets[storeName] : (budgets[store.csvName] !== undefined ? budgets[store.csvName] : (budgets['default'] !== undefined ? budgets['default'] : 4.0));
+              const storeBudget = resolveLossRatioBudget(store, this.config);
               if (rawVal <= storeBudget) {
                 td.classList.add('val-achieved'); // 予算以内: 緑
               } else {
@@ -413,14 +408,12 @@
         const tdAvg = document.createElement('td');
         tdAvg.className = 'td-col-val td-avg-val';
 
-        const count = metricCounts[metric.id] || 0;
-        if (count > 0) {
-          const avg = metricAverages[metric.id];
+        const avg = metricAverages[metric.id];
+        if (avg !== null) {
           tdAvg.textContent = `${avg.toFixed(1)}%`;
           const isLoss = (metric.id === 'lossRatio' || metric.key === 'lossRatio');
           if (isLoss) {
-            const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
-            const totalBudget = budgets['全店計'] !== undefined ? budgets['全店計'] : 4.0;
+            const totalBudget = resolveLossRatioBudget(categoryTotal, this.config);
             if (avg <= totalBudget) {
               tdAvg.classList.add('val-achieved'); // 予算以内: 緑
             } else {

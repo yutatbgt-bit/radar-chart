@@ -1456,3 +1456,19 @@ main {
   max-width: 480px; /* 少し大きめに表示 */
   margin: 0 auto;
 }
+
+/* ==========================================================================
+   カテゴリ店舗計カード（各列の一番上）
+   --category-accent は app.js でカテゴリの badgeBorder を設定
+   ========================================================================== */
+.store-kanban-card.category-total-card,
+[data-theme="light"] .store-kanban-card.category-total-card {
+  border: 1.5px solid var(--category-accent, var(--border-card));
+  box-shadow: var(--shadow-card), inset 0 0 0 1px var(--category-accent, transparent);
+}
+
+.store-kanban-card.category-total-card:hover,
+[data-theme="light"] .store-kanban-card.category-total-card:hover {
+  border-color: var(--category-accent, var(--border-card-hover));
+  box-shadow: var(--shadow-card-hover), inset 0 0 0 1px var(--category-accent, transparent);
+}

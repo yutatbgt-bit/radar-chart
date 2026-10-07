@@ -314,12 +314,72 @@
     };
   }
 
+  /**
+   * 有限数値のみを対象に算術平均を返す（対象0件なら null）
+   * @param {Array<*>} values
+   * @returns {number|null}
+   */
+  function averageOfFiniteNumbers(values) {
+    // 数値が有限であり、かつ 0 ではないもの（nullや0を除外）を有効値とする
+    const finiteValues = values.filter(v => typeof v === 'number' && Number.isFinite(v) && v !== 0);
+    if (finiteValues.length === 0) return null;
+    return finiteValues.reduce((acc, v) => acc + v, 0) / finiteValues.length;
+  }
+
+  /**
+   * カテゴリ（大型店・中型店A 等）単位の「店舗計」レコードを構築する。
+   *
+   * 比較日比・ロス率は比率指標であり、CSVには分母（比較日の売上・客数等）が含まれないため
+   * 加重平均での再計算はできない。列下部の一覧表「店舗計」行と数値を一致させる目的で、
+   * CSVに実在する店舗（クリア・欠損を除く）の単純平均を採用する。
+   *
+   * @param {Object} category buildKanbanData() が返すカテゴリ（stores配列を含む）
+   * @param {Object} config アプリ設定
+   * @returns {Object} StoreRadarChart / StoreMetricsTable にそのまま渡せる店舗互換レコード
+   */
+  function buildCategoryTotalData(category, config) {
+    const metrics = (config && config.metrics) || [];
+    const stores = (category && Array.isArray(category.stores)) ? category.stores : [];
+    const validStores = stores.filter(s => s && s.metrics && !s.isCleared && !s.isMissing);
+
+    const resultMetrics = {};
+    metrics.forEach((m) => {
+      // 淀屋橋店のような特定の店舗名ではなく、全項目において値が0またはnullのものを平均算出から除外する
+      const avg = averageOfFiniteNumbers(validStores.map(s =>
+        (s.metrics[m.key] !== undefined ? s.metrics[m.key] : s.metrics[m.id])
+      ));
+      resultMetrics[m.key] = avg;
+      resultMetrics[m.id] = avg;
+    });
+
+    const dailySalesValues = validStores
+      .map(s => s.dailySales)
+      .filter(v => typeof v === 'number' && Number.isFinite(v) && v !== 0);
+    const categoryName = (category && typeof category.name === 'string') ? category.name : '';
+    const displayName = `${categoryName} 計`;
+
+    return {
+      storeName: displayName,
+      csvName: displayName,
+      code: '',
+      dailySales: dailySalesValues.length > 0 ? dailySalesValues.reduce((acc, v) => acc + v, 0) : null,
+      metrics: resultMetrics,
+      categoryId: category ? category.id : '',
+      categoryName: categoryName,
+      storeCount: validStores.length,
+      // 描画側でロス率予算・目盛りを全店計基準に切り替えるための識別フラグ
+      isCategoryTotal: true,
+      isCleared: validStores.length === 0
+    };
+  }
+
   // グローバル公開
   root.SafeCsvParser = Object.freeze({
     parse: parseCsvToMatrix,
     extractStores: extractStoreRecords,
     buildKanban: buildKanbanData,
-    buildTotalStore: buildTotalStoreData
+    buildTotalStore: buildTotalStoreData,
+    buildCategoryTotal: buildCategoryTotalData
   });
 
 })(typeof window !== 'undefined' ? window : this);

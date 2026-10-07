@@ -108,6 +108,70 @@
   }
 
   /**
+   * 店舗カード（レーダーチャート＋項目別データ表の1セット）を生成する。
+   * 個店とカテゴリ店舗計で同一レイアウト・同一操作（クリックで拡大モーダル）を保証するため共通化。
+   * @param {Object} store 店舗レコード（カテゴリ店舗計の場合は isCategoryTotal: true）
+   * @param {Object} category カテゴリ設定
+   * @returns {HTMLElement}
+   */
+  function createStoreCard(store, category) {
+    const card = document.createElement('article');
+    card.className = 'store-kanban-card';
+    card.setAttribute('aria-label', `${store.storeName} 実績カード`);
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+
+    // カードヘッダー
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'card-header';
+
+    const nameSpan = document.createElement('h2');
+    nameSpan.className = 'card-store-name';
+    nameSpan.textContent = store.storeName;
+    cardHeader.appendChild(nameSpan);
+
+    // 個店は店コード、カテゴリ店舗計は集計対象店舗数を補足表示
+    let subLabel = '';
+    if (store.isCategoryTotal) {
+      subLabel = store.isCleared ? '店舗計' : `${store.storeCount}店舗平均`;
+    } else if (store.code) {
+      subLabel = `#${store.code}`;
+    }
+    if (subLabel) {
+      const codeSpan = document.createElement('span');
+      codeSpan.className = 'card-store-code';
+      codeSpan.textContent = subLabel;
+      cardHeader.appendChild(codeSpan);
+    }
+    card.appendChild(cardHeader);
+
+    // 1. レーダーチャート領域（セットの上部）
+    const chartArea = document.createElement('div');
+    chartArea.className = 'card-chart-area';
+    card.appendChild(chartArea);
+    new window.StoreRadarChart(chartArea, store, config, category);
+
+    // 2. 項目別データ表領域
+    const tableArea = document.createElement('div');
+    tableArea.className = 'card-table-area';
+    card.appendChild(tableArea);
+    new window.StoreMetricsTable(tableArea, store, config);
+
+    // クリック時およびキーボード操作時のPOPアップ拡大表示
+    card.addEventListener('click', () => {
+      openStoreModal(store, category);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openStoreModal(store, category);
+      }
+    });
+
+    return card;
+  }
+
+  /**
    * 4列カンバンボードのレンダリング
    * @param {Array} kanbanCategories 
    */
@@ -149,59 +213,18 @@
       const cardsContainer = document.createElement('div');
       cardsContainer.className = 'kanban-cards-container';
 
+      // 列の一番上に、カテゴリ全店舗の店舗計レーダーチャートを配置（ロス率目盛りは全店計基準）
+      const categoryTotal = window.SafeCsvParser.buildCategoryTotal(category, config);
+      const categoryTotalCard = createStoreCard(categoryTotal, category);
+      categoryTotalCard.classList.add('category-total-card');
+      if (category.badgeBorder) {
+        categoryTotalCard.style.setProperty('--category-accent', category.badgeBorder);
+      }
+      cardsContainer.appendChild(categoryTotalCard);
+
       // 各店舗カード（レーダーチャートとテーブルの1セット）
       category.stores.forEach((store) => {
-        const card = document.createElement('article');
-        card.className = 'store-kanban-card';
-        card.setAttribute('aria-label', `${store.storeName} 実績カード`);
-        card.setAttribute('tabindex', '0');
-        card.setAttribute('role', 'button');
-
-        // カードヘッダー
-        const cardHeader = document.createElement('div');
-        cardHeader.className = 'card-header';
-
-        const nameSpan = document.createElement('h2');
-        nameSpan.className = 'card-store-name';
-        nameSpan.textContent = store.storeName;
-
-        const codeSpan = document.createElement('span');
-        codeSpan.className = 'card-store-code';
-        codeSpan.textContent = store.code ? `#${store.code}` : '';
-
-        cardHeader.appendChild(nameSpan);
-        if (store.code) cardHeader.appendChild(codeSpan);
-        card.appendChild(cardHeader);
-
-        // 1. レーダーチャート領域（セットの上部）
-        const chartArea = document.createElement('div');
-        chartArea.className = 'card-chart-area';
-        card.appendChild(chartArea);
-
-        // レーダーチャートのインスタンス化
-        new window.StoreRadarChart(chartArea, store, config, category);
-
-        // 2. 各店の項目別データ表領域（カード内の表を消さずに維持）
-        const tableArea = document.createElement('div');
-        tableArea.className = 'card-table-area';
-        card.appendChild(tableArea);
-
-        // テーブルコンポーネントのインスタンス化
-        new window.StoreMetricsTable(tableArea, store, config);
-
-        // クリック時およびキーボード操作時のPOPアップ拡大表示
-        card.addEventListener('click', () => {
-          openStoreModal(store, category);
-        });
-
-        card.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openStoreModal(store, category);
-          }
-        });
-
-        cardsContainer.appendChild(card);
+        cardsContainer.appendChild(createStoreCard(store, category));
       });
 
       column.appendChild(cardsContainer);

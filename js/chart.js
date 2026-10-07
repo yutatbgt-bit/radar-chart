@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Luxury Dark Style Pure SVG レーダーチャート描画エンジン (chart.js)
  * 
  * 外部ライブラリ不使用、innerHTML不使用、DOM/SVG APIのみで構築。
@@ -73,7 +73,9 @@
      */
     getLossRatioBudget(isTotalStore = false) {
       const budgets = (this.config && this.config.lossRatioBudgets) || (window.RadarAppConfig && window.RadarAppConfig.lossRatioBudgets) || {};
-      if (isTotalStore) {
+      // カテゴリ店舗計は全店計と同じ予算を基準にし、ロス率軸の目盛り幅を全店計チャートと揃える
+      const useTotalBudget = isTotalStore || Boolean(this.store && this.store.isCategoryTotal);
+      if (useTotalBudget) {
         return budgets['全店計'] !== undefined ? budgets['全店計'] : 4.00;
       }
       const storeName = (this.store && this.store.storeName) || '';
@@ -295,18 +297,29 @@ valueToRadius(value) {
 
         // --- 2.5 全店計（背景比較用）ポリゴン ---
         try {
-          if (this.config && window.RadarAppTotalStoreData && window.RadarAppTotalStoreData.metrics && this.store && this.store.categoryId !== 'total') {
+          let overlayData = null;
+          if (this.store && this.store.categoryId !== 'total') {
+            if (this.store.isCategoryTotal) {
+              overlayData = window.RadarAppTotalStoreData;
+            } else if (window.SafeCsvParser && this.categoryConfig && this.categoryConfig.stores) {
+              overlayData = window.SafeCsvParser.buildCategoryTotal(this.categoryConfig, this.config);
+            } else {
+              overlayData = window.RadarAppTotalStoreData;
+            }
+          }
+
+          if (this.config && overlayData && overlayData.metrics) {
             const totalGroup = document.createElementNS(SVG_NS, 'g');
             totalGroup.setAttribute('class', 'chart-total-data');
-                          const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#f472b6', fillStart: 'rgba(244,114,182,0.3)' }};
-              const totalPoints = [];
-              this.metrics.forEach((metric, i) => {
-                const angle = i * angleStep;
-                let rawVal = window.RadarAppTotalStoreData.metrics[metric.key];
-                if (rawVal === undefined) rawVal = window.RadarAppTotalStoreData.metrics[metric.id];
-                if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
-                
-                let scaledVal = rawVal;
+            const totalTheme = this.config.totalStoreTheme || { chartColor: { stroke: '#f472b6', fillStart: 'rgba(244,114,182,0.3)' }};
+            const totalPoints = [];
+            this.metrics.forEach((metric, i) => {
+              const angle = i * angleStep;
+              let rawVal = overlayData.metrics[metric.key];
+              if (rawVal === undefined) rawVal = overlayData.metrics[metric.id];
+              if (rawVal === undefined || isNaN(rawVal) || rawVal === null) rawVal = 0;
+              
+              let scaledVal = rawVal;
             if (metric.id === "lossRatio" || metric.key === "lossRatio") {
               const totalBudget = this.getLossRatioBudget(true);
               scaledVal = this.scaleLossRatio(rawVal, totalBudget);
@@ -413,9 +426,20 @@ valueToRadius(value) {
             valText.setAttribute('font-family', 'monospace');
                           let textContentStr = `${actualVal.toFixed(2)}%`;
               let totalRawVal = undefined;
-              if (window.RadarAppTotalStoreData && window.RadarAppTotalStoreData.metrics) {
-                totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.key];
-                if (totalRawVal === undefined) totalRawVal = window.RadarAppTotalStoreData.metrics[node.metric.id];
+              let labelOverlayData = null;
+              if (this.store && this.store.categoryId !== 'total') {
+                if (this.store.isCategoryTotal) {
+                  labelOverlayData = window.RadarAppTotalStoreData;
+                } else if (window.SafeCsvParser && this.categoryConfig && this.categoryConfig.stores) {
+                  labelOverlayData = window.SafeCsvParser.buildCategoryTotal(this.categoryConfig, this.config);
+                } else {
+                  labelOverlayData = window.RadarAppTotalStoreData;
+                }
+              }
+
+              if (labelOverlayData && labelOverlayData.metrics) {
+                totalRawVal = labelOverlayData.metrics[node.metric.key];
+                if (totalRawVal === undefined) totalRawVal = labelOverlayData.metrics[node.metric.id];
               }
               const hasTotal = totalRawVal !== undefined && !isNaN(totalRawVal) && totalRawVal !== null && this.store.categoryId !== 'total';
               
