@@ -14,24 +14,166 @@
 
   /**
    * 安全な文字列サニタイズ
-   * @param {string} text 
+   * @param {*} val 
    * @returns {string}
    */
-  function sanitizeCell(text) {
-    if (typeof text !== 'string') return '';
-    return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  function sanitizeCell(val) {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'number' || typeof val === 'boolean') {
+      return String(val).trim();
+    }
+    if (typeof val !== 'string') return '';
+    return val.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
   }
 
   /**
-   * パーセント値・数値文字列のパース（例: "99.2%" -> 99.20, "1,246" -> 1246）
-   * @param {string} valStr 
+   * パーセント値・数値文字列のパース（例: "99.2%" -> 99.20, "1,246" -> 1246, 1246000 -> 1246000）
+   * @param {*} val 
    * @returns {number}
    */
-  function parsePercentageOrNumber(valStr) {
-    if (!valStr || typeof valStr !== 'string') return 0;
-    const clean = valStr.replace(/%/g, '').replace(/,/g, '').trim();
+  function parsePercentageOrNumber(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') {
+      return Number.isFinite(val) ? Math.round(val * 100) / 100 : 0;
+    }
+    const clean = String(val).replace(/[%％,¥\s]/g, '').trim();
     const num = parseFloat(clean);
     return Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
+  }
+
+  /**
+   * 指標（比較日比・ロス率）のパースと正規化
+   * Excelでパーセント書式セルが値のみ(raw: true)で読み込まれた場合（例: 0.992）、
+   * 0 < val <= 2.5 の小数を比率として 99.20% に正規化する。
+   * 文字列 "99.2%" や数値 99.2 の場合はそのまま 99.20 とする。
+   * @param {*} val 
+   * @returns {number}
+   */
+  function parseMetricRatio(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') {
+      if (!Number.isFinite(val)) return 0;
+      if (val > 0 && val <= 2.5) {
+        return Math.round(val * 10000) / 100;
+      }
+      return Math.round(val * 100) / 100;
+    }
+    const str = String(val).trim();
+    if (!str || str === '-') return 0;
+    const hasPercent = str.includes('%') || str.includes('％');
+    const clean = str.replace(/[%％,¥\s]/g, '').trim();
+    const num = parseFloat(clean);
+    if (!Number.isFinite(num)) return 0;
+    if (hasPercent) {
+      return Math.round(num * 100) / 100;
+    }
+    if (num > 0 && num <= 2.5) {
+      return Math.round(num * 10000) / 100;
+    }
+    return Math.round(num * 100) / 100;
+  }
+
+  /**
+   * CSVバッファ（ArrayBuffer）をUTF-8またはShift-JISで安全に文字列デコード
+   * @param {ArrayBuffer} buffer 
+   * @returns {string}
+   */
+  function decodeCsvBuffer(buffer) {
+    const bytes = new Uint8Array(buffer);
+    // UTF-8 BOM (EF BB BF) チェック
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      const utf8Decoder = new TextDecoder('utf-8');
+      return utf8Decoder.decode(bytes.subarray(3));
+    }
+
+    try {
+      // 厳格なUTF-8デコード試行（不正バイトがあればエラー）
+      const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+      return utf8Decoder.decode(bytes);
+    } catch (e) {
+      // Shift-JIS (cp932) デコード
+      try {
+        const sjisDecoder = new TextDecoder('shift-jis');
+        return sjisDecoder.decode(bytes);
+      } catch (e2) {
+        const fallback = new TextDecoder('utf-8');
+        return fallback.decode(bytes);
+      }
+    }
+  }
+
+  /**
+   * Excelファイル (ArrayBuffer) を2次元配列マトリックスに変換
+   * 【読み込みは値のみ】
+   * 数式(cellFormula: false)、装飾HTML(cellHTML: false)、書式テキスト(cellText: false)を無効化し、
+   * セルの生値(.v / raw: true)のみを取得する。
+   * @param {ArrayBuffer} arrayBuffer 
+   * @returns {Array<Array<any>>}
+   */
+  function parseExcelToMatrix(arrayBuffer) {
+    if (!root.XLSX) {
+      throw new Error('Excel読み込みライブラリ(SheetJS)が読み込まれていません。');
+    }
+    if (!arrayBuffer || !(arrayBuffer instanceof ArrayBuffer || arrayBuffer.byteLength !== undefined)) {
+      throw new Error('Excelデータが空または不正です。');
+    }
+
+    // 値のみ（キャッシュされた計算結果値）を抽出
+    const workbook = root.XLSX.read(arrayBuffer, {
+      type: 'array',
+      cellFormula: false,
+      cellHTML: false,
+      cellText: false,
+      raw: true
+    });
+
+    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('Excelファイル内に有効なシートが存在しません。');
+    }
+
+    const firstSheetName = workbook.SheetNames[0];
+    const firstSheet = workbook.Sheets[firstSheetName];
+    if (!firstSheet) {
+      throw new Error('ワークシートの読み込みに失敗しました。');
+    }
+
+    // header: 1 で2次元配列形式で取得、raw: true で値のみ抽出
+    const rawMatrix = root.XLSX.utils.sheet_to_json(firstSheet, {
+      header: 1,
+      raw: true,
+      defval: ''
+    });
+
+    if (!rawMatrix || rawMatrix.length === 0) {
+      throw new Error('Excelシート内にデータが存在しません。');
+    }
+
+    const sanitizedMatrix = [];
+    const maxRows = Math.min(rawMatrix.length, MAX_ROWS);
+
+    for (let r = 0; r < maxRows; r++) {
+      const row = rawMatrix[r];
+      if (!Array.isArray(row)) continue;
+      const sanitizedRow = [];
+      const maxCols = Math.min(row.length, MAX_COLS);
+      for (let c = 0; c < maxCols; c++) {
+        const cell = row[c];
+        if (cell === null || cell === undefined) {
+          sanitizedRow.push('');
+        } else if (typeof cell === 'string') {
+          sanitizedRow.push(sanitizeCell(cell));
+        } else if (typeof cell === 'number' || typeof cell === 'boolean') {
+          sanitizedRow.push(cell);
+        } else {
+          sanitizedRow.push(sanitizeCell(String(cell)));
+        }
+      }
+      if (sanitizedRow.some(val => val !== '' && val !== null && val !== undefined)) {
+        sanitizedMatrix.push(sanitizedRow);
+      }
+    }
+
+    return sanitizedMatrix;
   }
 
   /**
@@ -151,11 +293,11 @@
         rawRow: row
       };
 
-      // 指標データの抽出（時計回りの5項目）
+      // 指標データの抽出（時計回りの5項目＋ロス率）
       metrics.forEach((m) => {
         const colIdx = m.colIndex;
         const rawCell = (colIdx !== undefined && colIdx < row.length) ? row[colIdx] : '';
-        const parsedVal = parsePercentageOrNumber(rawCell);
+        const parsedVal = parseMetricRatio(rawCell);
         storeRecord.metrics[m.key] = parsedVal;
         storeRecord.metrics[m.id] = parsedVal;
       });
@@ -287,8 +429,8 @@
         metrics.forEach((m) => {
           const colIdx = m.colIndex;
           const rawCell = (colIdx !== undefined && colIdx < row.length) ? row[colIdx] : '';
-          matchedRecord.metrics[m.key] = parsePercentageOrNumber(rawCell);
-          matchedRecord.metrics[m.id] = parsePercentageOrNumber(rawCell);
+          matchedRecord.metrics[m.key] = parseMetricRatio(rawCell);
+          matchedRecord.metrics[m.id] = parseMetricRatio(rawCell);
         });
       }
     }
@@ -373,13 +515,77 @@
     };
   }
 
-  // グローバル公開
-  root.SafeCsvParser = Object.freeze({
+  /**
+   * FileオブジェクトまたはArrayBufferからマトリックスを生成する非同期パース関数
+   * CSVおよびExcel(.xlsx, .xls)の両方に対応し、値のみを抽出する
+   * @param {File|Blob|ArrayBuffer|string} fileOrBuffer 
+   * @param {string} fileName 
+   * @returns {Promise<Array<Array<any>>>}
+   */
+  function parseDataFile(fileOrBuffer, fileName = '') {
+    return new Promise((resolve, reject) => {
+      try {
+        const name = (fileOrBuffer && fileOrBuffer.name) ? fileOrBuffer.name : fileName;
+        const lowerName = (name || '').toLowerCase();
+        const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.xlsm');
+
+        if (fileOrBuffer instanceof ArrayBuffer) {
+          if (isExcel) {
+            resolve(parseExcelToMatrix(fileOrBuffer));
+          } else {
+            const text = decodeCsvBuffer(fileOrBuffer);
+            resolve(parseCsvToMatrix(text));
+          }
+          return;
+        }
+
+        if (fileOrBuffer instanceof Blob || (typeof File !== 'undefined' && fileOrBuffer instanceof File)) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const buffer = e.target.result;
+              if (isExcel) {
+                resolve(parseExcelToMatrix(buffer));
+              } else {
+                const text = decodeCsvBuffer(buffer);
+                resolve(parseCsvToMatrix(text));
+              }
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = () => {
+            reject(new Error('ファイルの読み込みに失敗しました。'));
+          };
+          reader.readAsArrayBuffer(fileOrBuffer);
+          return;
+        }
+
+        if (typeof fileOrBuffer === 'string') {
+          resolve(parseCsvToMatrix(fileOrBuffer));
+          return;
+        }
+
+        reject(new Error('サポートされていないファイル形式または入力です。'));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // グローバル公開（CSV・Excel両対応パーサー）
+  const exportedParser = Object.freeze({
     parse: parseCsvToMatrix,
+    parseExcel: parseExcelToMatrix,
+    parseFile: parseDataFile,
+    decodeCsv: decodeCsvBuffer,
     extractStores: extractStoreRecords,
     buildKanban: buildKanbanData,
     buildTotalStore: buildTotalStoreData,
     buildCategoryTotal: buildCategoryTotalData
   });
+
+  root.SafeCsvParser = exportedParser;
+  root.SafeDataParser = exportedParser;
 
 })(typeof window !== 'undefined' ? window : this);

@@ -663,9 +663,18 @@
     }
   }
 
-  function loadAndProcessCsv(csvText, fileName = '', isRestore = false) {
+  /**
+   * 2次元配列マトリックスから店舗データを構築してカンバン・全店計を描画
+   * @param {Array<Array<any>>} matrix 
+   * @param {string} fileName 
+   * @param {boolean} isRestore 
+   */
+  function loadAndProcessMatrix(matrix, fileName = '', isRestore = false) {
     try {
-      const matrix = window.SafeCsvParser.parse(csvText);
+      if (!matrix || !Array.isArray(matrix) || matrix.length === 0) {
+        throw new Error('有効なデータ行が存在しません。');
+      }
+
       const storeMap = window.SafeCsvParser.extractStores(matrix, config);
       const kanbanCategories = window.SafeCsvParser.buildKanban(storeMap, config);
       const totalStoreData = window.SafeCsvParser.buildTotalStore(storeMap, config, matrix);
@@ -713,9 +722,9 @@
       renderKanbanBoard(kanbanCategories);
       updateLoadedFileName(fileName || currentCsvFileName || '');
 
-      if (!isRestore && csvText) {
+      if (!isRestore && matrix) {
         RadarStorage.set('csv_state', {
-          csvText: csvText,
+          matrix: matrix,
           fileName: fileName || currentCsvFileName || '',
           timestamp: new Date().toISOString()
         }).catch(function(err) {
@@ -726,22 +735,46 @@
       const totalStores = kanbanCategories.reduce((acc, c) => acc + c.stores.length, 0);
       showToast(`データ読み込み完了: 全${totalStores}店舗のカンバンを描画しました。`, 'success');
     } catch (err) {
+      console.error('データ解析エラー:', err);
+      showToast(`エラー: ${err.message}`, 'error');
+    }
+  }
+
+  /**
+   * 後方互換用: CSVテキストから読み込み
+   * @param {string} csvText 
+   * @param {string} fileName 
+   * @param {boolean} isRestore 
+   */
+  function loadAndProcessCsv(csvText, fileName = '', isRestore = false) {
+    try {
+      const matrix = window.SafeCsvParser.parse(csvText);
+      loadAndProcessMatrix(matrix, fileName, isRestore);
+    } catch (err) {
       console.error('CSVパースエラー:', err);
       showToast(`エラー: ${err.message}`, 'error');
     }
   }
 
-  function processCsvFile(file) {
+  /**
+   * CSVおよびExcel(.xlsx, .xls)ファイルを安全に検証・解析
+   * @param {File} file 
+   */
+  function processFile(file) {
     if (!file) return;
 
     const fileName = file.name || '';
-    const isCsv = fileName.toLowerCase().endsWith('.csv') ||
-                  file.type.includes('csv') ||
-                  file.type.includes('text') ||
-                  fileName.toLowerCase().endsWith('.txt');
+    const lowerName = fileName.toLowerCase();
+    const isCsv = lowerName.endsWith('.csv') ||
+                  lowerName.endsWith('.txt') ||
+                  (file.type && (file.type.includes('csv') || file.type.includes('text')));
+    const isExcel = lowerName.endsWith('.xlsx') ||
+                    lowerName.endsWith('.xls') ||
+                    lowerName.endsWith('.xlsm') ||
+                    (file.type && (file.type.includes('spreadsheet') || file.type.includes('excel')));
 
-    if (!isCsv) {
-      showToast('CSV形式（.csv）のファイルを選択またはドロップしてください。', 'error');
+    if (!isCsv && !isExcel) {
+      showToast('CSV形式（.csv）またはExcel形式（.xlsx, .xls）のファイルを選択またはドロップしてください。', 'error');
       return;
     }
 
@@ -750,32 +783,40 @@
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target.result;
-      currentCsvFileName = fileName || '';
-      showToast(`「${fileName}」読み込み中...`, 'info');
-      loadAndProcessCsv(content, fileName, false);
-    };
-    reader.onerror = () => {
-      showToast('ファイルの読み込みに失敗しました。', 'error');
-    };
-    reader.readAsText(file, 'UTF-8');
+    currentCsvFileName = fileName || '';
+    showToast(`「${fileName}」読み込み中...`, 'info');
+
+    window.SafeCsvParser.parseFile(file).then((matrix) => {
+      loadAndProcessMatrix(matrix, fileName, false);
+    }).catch((err) => {
+      console.error('ファイル読み込み/解析エラー:', err);
+      showToast(`ファイルの解析に失敗しました: ${err.message}`, 'error');
+    });
   }
 
-  window.handleInlineCsvDrop = function(e) {
+  function processCsvFile(file) {
+    processFile(file);
+  }
+
+  window.handleInlineFileDrop = function(e) {
     if (!e) return;
     const dt = e.dataTransfer;
     if (!dt || !dt.files || dt.files.length === 0) return;
-    processCsvFile(dt.files[0]);
+    processFile(dt.files[0]);
   };
+  window.handleInlineCsvDrop = window.handleInlineFileDrop;
 
   function restorePersistedData() {
     RadarStorage.get('csv_state').then(function(state) {
-      if (!state || !state.csvText) return;
+      if (!state) return;
       currentCsvFileName = state.fileName || '';
-      loadAndProcessCsv(state.csvText, currentCsvFileName, true);
-      showToast(`前回保存されたデータ（${currentCsvFileName || 'CSV'}）を復元しました。`, 'info');
+      if (state.matrix && Array.isArray(state.matrix)) {
+        loadAndProcessMatrix(state.matrix, currentCsvFileName, true);
+        showToast(`前回保存されたデータ（${currentCsvFileName || '復元データ'}）を復元しました。`, 'info');
+      } else if (state.csvText) {
+        loadAndProcessCsv(state.csvText, currentCsvFileName, true);
+        showToast(`前回保存されたデータ（${currentCsvFileName || 'CSV'}）を復元しました。`, 'info');
+      }
     }).catch(function(err) {
       console.warn('[restorePersistedData] error:', err);
     });
@@ -842,8 +883,9 @@
       if (files && files.length > 0) {
         const file = files[0];
         const fileName = (file.name || '').toLowerCase();
-        if (fileName.endsWith('.csv') || file.type.includes('csv') || file.type.includes('text')) {
-          processCsvFile(file);
+        if (fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ||
+            fileName.endsWith('.xlsm') || (file.type && (file.type.includes('csv') || file.type.includes('spreadsheet') || file.type.includes('excel') || file.type.includes('text')))) {
+          processFile(file);
         }
       }
     });
@@ -880,7 +922,7 @@
         dropZone.classList.remove('is-drag-over');
         const files = e.dataTransfer && e.dataTransfer.files;
         if (!files || files.length === 0) return;
-        processCsvFile(files[0]);
+        processFile(files[0]);
       });
     }
   }
