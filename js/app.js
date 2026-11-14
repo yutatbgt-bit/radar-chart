@@ -643,18 +643,28 @@
   // =========================================================================
 
   /**
-   * アップロードされたファイル名をヘッダーに安全に表示
+   * アップロードされたファイルの対象期間と店舗名をヘッダーに安全に表示
    * @param {string} fileName 
+   * @param {Array<Array<any>>|null} [matrix=null]
    */
-  function updateLoadedFileName(fileName) {
+  function updateLoadedFileName(fileName, matrix = null) {
     const displayEl = document.getElementById('loaded-file-display');
     const nameEl = document.getElementById('loaded-file-name');
     if (!displayEl || !nameEl) return;
 
     const safeName = (typeof fileName === 'string') ? fileName.trim() : '';
-    if (safeName) {
-      nameEl.textContent = safeName;
-      displayEl.title = `読み込み中ファイル: ${safeName}`;
+    if (safeName || (Array.isArray(matrix) && matrix.length > 0)) {
+      let displayLabel = safeName;
+      if (window.SafeCsvParser && typeof window.SafeCsvParser.extractFileMetadata === 'function') {
+        const meta = window.SafeCsvParser.extractFileMetadata(matrix || [], safeName);
+        if (meta) {
+          displayLabel = `${meta.periodLabel} ${meta.storeName}`.trim();
+        }
+      }
+      nameEl.textContent = displayLabel;
+      displayEl.title = safeName
+        ? `読み込み中ファイル: ${safeName}`
+        : `読み込み中データ: ${displayLabel}`;
       displayEl.style.display = 'inline-flex';
     } else {
       nameEl.textContent = '';
@@ -720,7 +730,7 @@
 
       renderTotalStoreSection(totalStoreData);
       renderKanbanBoard(kanbanCategories);
-      updateLoadedFileName(fileName || currentCsvFileName || '');
+      updateLoadedFileName(fileName || currentCsvFileName || '', matrix);
 
       if (!isRestore && matrix) {
         RadarStorage.set('csv_state', {

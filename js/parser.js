@@ -573,6 +573,193 @@
     });
   }
 
+  /**
+   * マトリックスおよびファイル名から対象期間ラベルと店舗名ラベルを安全に抽出
+   * @param {Array<Array<any>>} matrix
+   * @param {string} fileName
+   * @returns {{ periodLabel: string, storeName: string, fileName: string }}
+   */
+  function extractFileMetadata(matrix, fileName = '') {
+    const DAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+    function toHalfWidth(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).trim();
+    }
+
+    function formatDateWithDow(y, m, d) {
+      const year = Number(y);
+      const month = Number(m);
+      const day = Number(d);
+      if (year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const dt = new Date(year, month - 1, day);
+        const dow = !isNaN(dt.getTime()) ? `(${DAYS_JP[dt.getDay()]})` : '';
+        return `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}${dow}`;
+      }
+      return '';
+    }
+
+    function normalizeDateToken(raw) {
+      if (raw === null || raw === undefined || raw === '') return '';
+      if (typeof raw === 'number' && raw > 25000 && raw < 70000) {
+        const utcDays = Math.floor(raw - 25569);
+        const dt = new Date(utcDays * 86400 * 1000);
+        return formatDateWithDow(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+      }
+      const s = toHalfWidth(raw);
+      const mYmd = s.match(/(20\d{2})[年\/\-.]\s*(\d{1,2})[月\/\-.]\s*(\d{1,2})日?(?:\(([日月火水木金土])\))?/);
+      if (mYmd) {
+        if (mYmd[4]) {
+          return `${mYmd[1]}/${String(mYmd[2]).padStart(2, '0')}/${String(mYmd[3]).padStart(2, '0')}(${mYmd[4]})`;
+        }
+        return formatDateWithDow(mYmd[1], mYmd[2], mYmd[3]);
+      }
+      return s;
+    }
+
+    let periodLabel = '';
+    let storeName = '';
+    let startDate = '';
+    let endDate = '';
+    let hasMultipleStoresOrTotal = false;
+
+    if (Array.isArray(matrix)) {
+      const maxScan = Math.min(matrix.length, 12);
+      for (let r = 0; r < maxScan; r++) {
+        const row = matrix[r];
+        if (!Array.isArray(row)) continue;
+
+        let storeHeaderHits = 0;
+        for (let c = 0; c < row.length; c++) {
+          const rawCell = row[c];
+          if (rawCell === null || rawCell === undefined || rawCell === '') continue;
+          const cellStr = toHalfWidth(rawCell);
+          if (!cellStr) continue;
+
+          if (cellStr === '全店計' || cellStr === '全店合計' || cellStr === '全店舗') {
+            hasMultipleStoresOrTotal = true;
+          }
+          if (/^\d{2,4}\s*[^\d\s]+/.test(cellStr)) {
+            storeHeaderHits++;
+          }
+
+          if (cellStr.includes('対象期間開始日')) {
+            const parts = cellStr.split(/[：:]/);
+            const candidate = (parts[1] && parts[1].trim()) ? parts[1].trim() : (row[c + 1] !== undefined ? row[c + 1] : '');
+            const norm = normalizeDateToken(candidate);
+            if (norm) startDate = norm;
+            continue;
+          }
+          if (cellStr.includes('対象期間終了日')) {
+            const parts = cellStr.split(/[：:]/);
+            const candidate = (parts[1] && parts[1].trim()) ? parts[1].trim() : (row[c + 1] !== undefined ? row[c + 1] : '');
+            const norm = normalizeDateToken(candidate);
+            if (norm) endDate = norm;
+            continue;
+          }
+
+          if (!periodLabel) {
+            const mRange = cellStr.match(/(20\d{2}[年\/\-.]\s*\d{1,2}[月\/\-.]\s*\d{1,2}日?(?:\([日月火水木金土]\))?)\s*[~〜～\-－]\s*((?:20\d{2}[年\/\-.]\s*)?\d{1,2}[月\/\-.]\s*\d{1,2}日?(?:\([日月火水木金土]\))?)/);
+            if (mRange) {
+              const sNorm = normalizeDateToken(mRange[1]);
+              const eNorm = normalizeDateToken(mRange[2]);
+              periodLabel = (sNorm === eNorm) ? sNorm : `${sNorm}〜${eNorm}`;
+            } else if (/^(?:対象期間|表示期間|集計期間|期間|年月日|営業日|日付)[：:]/.test(cellStr)) {
+              const valPart = cellStr.split(/[：:]/).slice(1).join(':').trim() || (row[c + 1] !== undefined ? toHalfWidth(row[c + 1]) : '');
+              if (valPart) {
+                const mSubRange = valPart.match(/(20\d{2}[年\/\-.]\s*\d{1,2}[月\/\-.]\s*\d{1,2}日?(?:\([日月火水木金土]\))?)\s*[~〜～\-－]\s*((?:20\d{2}[年\/\-.]\s*)?\d{1,2}[月\/\-.]\s*\d{1,2}日?(?:\([日月火水木金土]\))?)/);
+                if (mSubRange) {
+                  const sNorm = normalizeDateToken(mSubRange[1]);
+                  const eNorm = normalizeDateToken(mSubRange[2]);
+                  periodLabel = (sNorm === eNorm) ? sNorm : `${sNorm}〜${eNorm}`;
+                } else {
+                  periodLabel = normalizeDateToken(valPart);
+                }
+              }
+            } else if (r < 5) {
+              const mSingle = cellStr.match(/^(20\d{2})[年\/\-.]\s*(\d{1,2})[月\/\-.]\s*(\d{1,2})日?(?:\(([日月火水木金土])\))?$/);
+              if (mSingle) {
+                periodLabel = normalizeDateToken(cellStr);
+              } else {
+                const mYm = cellStr.match(/^(20\d{2})[年\/\-.]\s*(\d{1,2})月(?:度)?$/);
+                if (mYm) {
+                  periodLabel = `${mYm[1]}年${Number(mYm[2])}月`;
+                }
+              }
+            }
+          }
+
+          if (!storeName && /^(?:店舗名|店名|対象店舗|検索店舗|店舗)[：:]?$/.test(cellStr.split(/[：:]/)[0].trim())) {
+            const parts = cellStr.split(/[：:]/);
+            const rawStoreVal = (parts[1] && parts[1].trim()) ? parts[1].trim() : (row[c + 1] !== undefined ? toHalfWidth(row[c + 1]) : '');
+            if (rawStoreVal && !/^(?:店舗|店名|対象期間|年月日)/.test(rawStoreVal)) {
+              storeName = rawStoreVal;
+            }
+          }
+        }
+        if (storeHeaderHits >= 2) {
+          hasMultipleStoresOrTotal = true;
+        }
+      }
+    }
+
+    if (!periodLabel && (startDate || endDate)) {
+      if (startDate && endDate) {
+        periodLabel = (startDate === endDate) ? startDate : `${startDate}〜${endDate}`;
+      } else {
+        periodLabel = startDate || endDate;
+      }
+    }
+
+    const cleanFn = toHalfWidth(String(fileName || '').replace(/\.[^.]+$/, ''));
+    if (!periodLabel && cleanFn) {
+      const mFnRange = cleanFn.match(/(20\d{2})[年\/\-._]?([01]\d)[月\/\-._]?([0-3]\d)日?\s*[~〜～\-_]\s*(?:(20\d{2})[年\/\-._]?)?([01]\d)[月\/\-._]?([0-3]\d)日?/);
+      if (mFnRange) {
+        const s1 = formatDateWithDow(mFnRange[1], mFnRange[2], mFnRange[3]);
+        const s2 = formatDateWithDow(mFnRange[4] || mFnRange[1], mFnRange[5], mFnRange[6]);
+        if (s1 && s2) periodLabel = (s1 === s2) ? s1 : `${s1}〜${s2}`;
+      }
+      if (!periodLabel) {
+        const mFnYmd = cleanFn.match(/(20\d{2})[年\/\-._\s]([01]?\d)[月\/\-._\s]([0-3]?\d)日?/) ||
+                       cleanFn.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+        if (mFnYmd) {
+          periodLabel = formatDateWithDow(mFnYmd[1], mFnYmd[2], mFnYmd[3]);
+        }
+      }
+      if (!periodLabel) {
+        const mFnYm = cleanFn.match(/(20\d{2})[年\/\-._\s]?([01]?\d)月?/);
+        if (mFnYm && Number(mFnYm[2]) >= 1 && Number(mFnYm[2]) <= 12) {
+          periodLabel = `${mFnYm[1]}年${Number(mFnYm[2])}月`;
+        }
+      }
+    }
+
+    if (!storeName && cleanFn) {
+      if (/(?:全店舗|全店|全社|全体)/.test(cleanFn)) {
+        storeName = '全店舗';
+      } else if (!hasMultipleStoresOrTotal) {
+        const mStore = cleanFn.match(/(?:\d{2,4}[_\-\s]*)?([^\d_\-\s()（）.]{1,12}店)/);
+        if (mStore) storeName = mStore[1];
+      }
+    }
+
+    if (!storeName || /(?:全店舗|全店|全社|全体|全店計|全店合計)/.test(storeName) || hasMultipleStoresOrTotal) {
+      storeName = '全店舗';
+    } else {
+      storeName = storeName.replace(/^\d{1,4}[\s:：_\-]*/, '').trim() || '全店舗';
+    }
+
+    if (!periodLabel) {
+      periodLabel = '期間未特定';
+    }
+
+    return {
+      periodLabel: periodLabel,
+      storeName: storeName,
+      fileName: String(fileName || '')
+    };
+  }
+
   // グローバル公開（CSV・Excel両対応パーサー）
   const exportedParser = Object.freeze({
     parse: parseCsvToMatrix,
@@ -582,7 +769,8 @@
     extractStores: extractStoreRecords,
     buildKanban: buildKanbanData,
     buildTotalStore: buildTotalStoreData,
-    buildCategoryTotal: buildCategoryTotalData
+    buildCategoryTotal: buildCategoryTotalData,
+    extractFileMetadata: extractFileMetadata
   });
 
   root.SafeCsvParser = exportedParser;
