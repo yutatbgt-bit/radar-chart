@@ -273,10 +273,10 @@
       let storeCode = sanitizeCell(row[0] || '').replace(/^'/, '');
       let rawStoreName = sanitizeCell(row[1] || '');
 
-              // 空行またはヘッダー行のみスキップ。「計」の行はすべて取り込む
-        if (!rawStoreName || rawStoreName.includes('店コード/店名')) {
-          continue;
-        }
+      // 空行またはヘッダー行のみスキップ。「計」の行はすべて取り込む
+      if (!rawStoreName || rawStoreName.includes('店コード/店名')) {
+        continue;
+      }
 
       const dailySalesCol = (config.dataMapping && config.dataMapping.dailySalesColIndex !== undefined)
         ? config.dataMapping.dailySalesColIndex
@@ -390,12 +390,12 @@
    * 全店計専用のデータ構造を構築する
    * CSV内に「全店計」「合計」「全店」があれば抽出し、なければ全店舗平均から算出する
    */
-    function buildTotalStoreData(storeMap, config, matrix) {
+  function buildTotalStoreData(storeMap, config, matrix) {
     const metrics = config.metrics || [];
     // CSV上での「全店計」に該当しそうな名前の候補
     const aliases = ["全店計", "全店", "合計", "総合計", "総計", "全体", "計"];
     let matchedRecord = null;
-    
+
     // エイリアスでの完全一致検索
     for (const alias of aliases) {
       if (storeMap.has(alias)) {
@@ -584,7 +584,11 @@
 
     function toHalfWidth(str) {
       if (str === null || str === undefined) return '';
-      return String(str).replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).trim();
+      return String(str)
+        .slice(0, 300)
+        .replace(/[\u0000-\u001F\u007F]/g, '')
+        .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .trim();
     }
 
     function formatDateWithDow(y, m, d) {
@@ -630,7 +634,8 @@
         if (!Array.isArray(row)) continue;
 
         let storeHeaderHits = 0;
-        for (let c = 0; c < row.length; c++) {
+        const maxCols = Math.min(row.length, 60);
+        for (let c = 0; c < maxCols; c++) {
           const rawCell = row[c];
           if (rawCell === null || rawCell === undefined || rawCell === '') continue;
           const cellStr = toHalfWidth(rawCell);
@@ -721,7 +726,7 @@
       }
       if (!periodLabel) {
         const mFnYmd = cleanFn.match(/(20\d{2})[年\/\-._\s]([01]?\d)[月\/\-._\s]([0-3]?\d)日?/) ||
-                       cleanFn.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+          cleanFn.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
         if (mFnYmd) {
           periodLabel = formatDateWithDow(mFnYmd[1], mFnYmd[2], mFnYmd[3]);
         }
@@ -746,17 +751,19 @@
     if (!storeName || /(?:全店舗|全店|全社|全体|全店計|全店合計)/.test(storeName) || hasMultipleStoresOrTotal) {
       storeName = '全店舗';
     } else {
-      storeName = storeName.replace(/^\d{1,4}[\s:：_\-]*/, '').trim() || '全店舗';
+      storeName = storeName.replace(/^\d{1,4}[\s:：_\-]*/, '').trim().slice(0, 30) || '全店舗';
     }
 
     if (!periodLabel) {
       periodLabel = '期間未特定';
+    } else {
+      periodLabel = periodLabel.slice(0, 50);
     }
 
     return {
       periodLabel: periodLabel,
       storeName: storeName,
-      fileName: String(fileName || '')
+      fileName: String(fileName || '').slice(0, 255)
     };
   }
 
